@@ -1,4 +1,5 @@
-import { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -68,7 +69,7 @@ const DISCIPLINAS_BASE = [
     usaAP3: true,
   },
 ];
-
+const CHAVE_STORAGE = "media-escolar-dados";
 function criarTrimestre(): NotasTrimestre {
   return {
     ap1: "",
@@ -299,7 +300,39 @@ export default function HomeScreen() {
   const [disciplinas, setDisciplinas] = useState<Disciplina[]>(
     criarDisciplinas()
   );
+const [dadosCarregados, setDadosCarregados] = useState(false);
 
+useEffect(() => {
+  async function carregarDados() {
+    try {
+      const dadosSalvos = await AsyncStorage.getItem(CHAVE_STORAGE);
+
+      if (dadosSalvos) {
+        setDisciplinas(JSON.parse(dadosSalvos));
+      }
+    } catch (erro) {
+      console.log("Erro ao carregar dados:", erro);
+    } finally {
+      setDadosCarregados(true);
+    }
+  }
+
+  carregarDados();
+}, []);
+
+useEffect(() => {
+  async function salvarDados() {
+    try {
+      if (dadosCarregados) {
+        await AsyncStorage.setItem(CHAVE_STORAGE, JSON.stringify(disciplinas));
+      }
+    } catch (erro) {
+      console.log("Erro ao salvar dados:", erro);
+    }
+  }
+
+  salvarDados();
+}, [disciplinas, dadosCarregados]);
   const [disciplinaSelecionada, setDisciplinaSelecionada] = useState(0);
   const [trimestreSelecionado, setTrimestreSelecionado] =
     useState<Trimestre>("t1");
