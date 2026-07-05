@@ -352,15 +352,15 @@ function mostrarNota(nota: number | null) {
 
 function obterSiglaDisciplina(nome: string) {
   const siglas: Record<string, string> = {
-    "Arte I": "ARTI",
-    "Arte II": "ARTII",
+    "Arte I": "ART",
+    "Arte II": "ART",
     Biologia: "BIO",
-    "Ciências Naturais": "CIE",
+    "Ciências Naturais": "CN",
     "Educação Física": "EF",
     Filosofia: "FIL",
     Física: "FIS",
     Geografia: "GEO",
-    História: "HIS",
+    História: "HIST",
     "LEM - Inglês": "ING",
     "Língua Portuguesa": "POR",
     Matemática: "MAT",
