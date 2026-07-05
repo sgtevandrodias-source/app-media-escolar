@@ -59,7 +59,16 @@ type Classificacao = {
   corAvatar: string;
 };
 
+type LicencaLocal = {
+  ativa: boolean;
+  chave: string;
+  deviceId: string;
+  ativadaEm: string;
+};
+
 const CHAVE_STORAGE = "media-escolar-dados";
+const CHAVE_DEVICE_ID = "media-cmb-device-id";
+const CHAVE_LICENCA_LOCAL = "media-cmb-licenca-local";
 const LIMITE_FILHOS = 5;
 
 const SERIES: SerieConfig[] = [
@@ -396,6 +405,16 @@ function calcularResumoDisciplinas(filho: Filho) {
   });
 }
 
+function gerarDeviceId() {
+  const aleatorio = Math.random().toString(36).slice(2, 12).toUpperCase();
+  const momento = Date.now().toString(36).toUpperCase();
+  return `MEDIA-CMB-${momento}-${aleatorio}`;
+}
+
+function normalizarChave(valor: string) {
+  return valor.trim().toUpperCase().replace(/\s+/g, "");
+}
+
 export default function HomeScreen() {
   const [filhos, setFilhos] = useState<Filho[]>([criarFilho("Aluno 1", "7EF", turmaPadrao("7EF"))]);
   const [filhoSelecionado, setFilhoSelecionado] = useState(0);
@@ -409,6 +428,44 @@ export default function HomeScreen() {
   const [turmaFormulario, setTurmaFormulario] = useState(turmaPadrao("7EF"));
   const [mensagem, setMensagem] = useState("");
   const [abaAtiva, setAbaAtiva] = useState<AbaApp>("inicio");
+  const [licencaCarregada, setLicencaCarregada] = useState(false);
+  const [licencaAtiva, setLicencaAtiva] = useState(false);
+  const [deviceId, setDeviceId] = useState("");
+  const [chaveAtivacao, setChaveAtivacao] = useState("");
+  const [mensagemLicenca, setMensagemLicenca] = useState("");
+  const [validandoLicenca, setValidandoLicenca] = useState(false);
+
+  useEffect(() => {
+    async function carregarLicenca() {
+      try {
+        let idDispositivo = await AsyncStorage.getItem(CHAVE_DEVICE_ID);
+
+        if (!idDispositivo) {
+          idDispositivo = gerarDeviceId();
+          await AsyncStorage.setItem(CHAVE_DEVICE_ID, idDispositivo);
+        }
+
+        setDeviceId(idDispositivo);
+
+        const licencaSalva = await AsyncStorage.getItem(CHAVE_LICENCA_LOCAL);
+
+        if (licencaSalva) {
+          const dadosLicenca = JSON.parse(licencaSalva) as LicencaLocal;
+
+          if (dadosLicenca?.ativa && dadosLicenca?.deviceId === idDispositivo) {
+            setLicencaAtiva(true);
+            setChaveAtivacao(dadosLicenca.chave ?? "");
+          }
+        }
+      } catch (erro) {
+        console.log("Erro ao carregar licença:", erro);
+      } finally {
+        setLicencaCarregada(true);
+      }
+    }
+
+    carregarLicenca();
+  }, []);
 
   useEffect(() => {
     async function carregarDados() {
@@ -611,6 +668,107 @@ export default function HomeScreen() {
 
     setFilhos(filhosAtualizados);
     setMensagem("Foto removida.");
+  }
+
+  async function ativarLicenca() {
+    const chave = normalizarChave(chaveAtivacao);
+
+    if (!chave) {
+      setMensagemLicenca("Informe a chave de acesso.");
+      return;
+    }
+
+    if (!deviceId) {
+      setMensagemLicenca("Não foi possível identificar este dispositivo. Feche e abra o app novamente.");
+      return;
+    }
+
+    try {
+      setValidandoLicenca(true);
+      setMensagemLicenca("Validando chave de acesso...");
+
+      if (__DEV__ && chave === "EVANDRO-TESTE-LOCAL") {
+        const licencaLocal: LicencaLocal = { ativa: true, chave, deviceId, ativadaEm: new Date().toISOString() };
+        await AsyncStorage.setItem(CHAVE_LICENCA_LOCAL, JSON.stringify(licencaLocal));
+        setLicencaAtiva(true);
+        setMensagemLicenca("Licença local de teste ativada.");
+        return;
+      }
+
+      const resposta = await fetch("/api/ativar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chave, deviceId }),
+      });
+
+      const resultado = await resposta.json();
+
+      if (!resposta.ok || !resultado?.ok) {
+        setMensagemLicenca(resultado?.mensagem ?? "Chave não autorizada.");
+        return;
+      }
+
+      const licencaLocal: LicencaLocal = { ativa: true, chave, deviceId, ativadaEm: new Date().toISOString() };
+      await AsyncStorage.setItem(CHAVE_LICENCA_LOCAL, JSON.stringify(licencaLocal));
+      setLicencaAtiva(true);
+      setMensagemLicenca(resultado?.mensagem ?? "Licença ativada com sucesso.");
+    } catch (erro) {
+      console.log("Erro ao ativar licença:", erro);
+      setMensagemLicenca("Não foi possível validar a chave. Verifique a internet e tente novamente.");
+    } finally {
+      setValidandoLicenca(false);
+    }
+  }
+
+  function renderTelaLicenca() {
+    return (
+      <ScrollView contentContainerStyle={styles.containerLicenca}>
+        <View style={styles.cardLicenca}>
+          <Text style={styles.titulo}>Média CMB</Text>
+          <Text style={styles.descricao}>Ative o app para liberar o uso neste dispositivo.</Text>
+
+          <Text style={styles.cardTitulo}>Chave de acesso</Text>
+          <Text style={styles.info}>
+            Digite a chave fornecida pelo desenvolvedor. Cada chave pode liberar até 2 dispositivos.
+          </Text>
+
+          <Text style={styles.label}>Chave</Text>
+          <TextInput
+            style={styles.input}
+            value={chaveAtivacao}
+            onChangeText={setChaveAtivacao}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            placeholder="Ex.: MEDIA-CMB-8K2P-91QD"
+            placeholderTextColor="#cbd5e1"
+          />
+
+          <Pressable
+            style={[styles.botaoAtivar, validandoLicenca && styles.botaoDesabilitado]}
+            onPress={ativarLicenca}
+            disabled={validandoLicenca}
+          >
+            <Text style={styles.botaoAtivarTexto}>{validandoLicenca ? "Validando..." : "Ativar app"}</Text>
+          </Pressable>
+
+          {mensagemLicenca ? <Text style={styles.mensagemLicenca}>{mensagemLicenca}</Text> : null}
+
+          <View style={styles.caixaDevice}>
+            <Text style={styles.infoCompacta}>ID deste dispositivo:</Text>
+            <Text style={styles.deviceTexto}>{deviceId || "Gerando identificação..."}</Text>
+          </View>
+
+          {__DEV__ ? (
+            <Text style={styles.avisoFormulario}>
+              Teste local: use a chave EVANDRO-TESTE-LOCAL. Essa chave só funciona no modo de desenvolvimento.
+            </Text>
+          ) : null}
+
+          <Text style={styles.rodape}>Desenvolvido por EDS</Text>
+          <Text style={styles.rodapeSub}>Este app guarda dados apenas no seu dispositivo.</Text>
+        </View>
+      </ScrollView>
+    );
   }
 
   function renderCabecalho() {
@@ -885,6 +1043,21 @@ export default function HomeScreen() {
     );
   }
 
+  if (!licencaCarregada) {
+    return (
+      <ScrollView contentContainerStyle={styles.containerLicenca}>
+        <View style={styles.cardLicenca}>
+          <Text style={styles.titulo}>Média CMB</Text>
+          <Text style={styles.info}>Carregando licença...</Text>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  if (!licencaAtiva) {
+    return renderTelaLicenca();
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {renderCabecalho()}
@@ -973,4 +1146,12 @@ const styles = StyleSheet.create({
   avisoFormulario: { marginTop: 12, fontSize: 13, color: "#64748b", lineHeight: 18 },
   rodape: { marginTop: 18, fontSize: 12, color: "#94a3b8", textAlign: "center", fontWeight: "700" },
   rodapeSub: { marginTop: 2, marginBottom: 30, fontSize: 12, color: "#94a3b8", textAlign: "center", fontWeight: "600" },
+  containerLicenca: { padding: 20, paddingTop: 70, paddingBottom: 70, backgroundColor: "#f3f6fb", flexGrow: 1, justifyContent: "center" },
+  cardLicenca: { backgroundColor: "#ffffff", borderRadius: 26, padding: 22, elevation: 4, borderWidth: 1, borderColor: "#dbeafe" },
+  botaoAtivar: { marginTop: 18, borderRadius: 16, paddingVertical: 15, alignItems: "center", backgroundColor: "#1d4ed8" },
+  botaoDesabilitado: { opacity: 0.6 },
+  botaoAtivarTexto: { color: "#ffffff", fontWeight: "bold", fontSize: 17 },
+  mensagemLicenca: { marginTop: 14, fontSize: 15, color: "#1d4ed8", fontWeight: "bold", lineHeight: 21 },
+  caixaDevice: { marginTop: 18, borderRadius: 16, padding: 12, backgroundColor: "#f8fafc", borderWidth: 1, borderColor: "#e2e8f0" },
+  deviceTexto: { marginTop: 4, color: "#64748b", fontSize: 11, fontWeight: "700" },
 });

@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "media-cmb",
+  "compatibility_date": "2025-01-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "media-cmb-licencas",
+      "database_id": "82b976a3-24b2-41fc-9a13-aba27a8c5a20"
+    }
+  ]
+}
