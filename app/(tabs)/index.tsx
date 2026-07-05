@@ -1,6 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
 import {
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -33,6 +35,7 @@ type Filho = {
   nome: string;
   serie: SerieEscolar;
   turma: string;
+  fotoUri?: string;
   disciplinas: Disciplina[];
 };
 
@@ -137,7 +140,7 @@ function turmaPadrao(serie: SerieEscolar) {
 }
 
 function criarFilho(nome = "Aluno 1", serie: SerieEscolar = "7EF", turma = turmaPadrao("7EF")): Filho {
-  return { id: String(Date.now()), nome, serie, turma, disciplinas: criarDisciplinasPorSerie(serie) };
+  return { id: String(Date.now()), nome, serie, turma, fotoUri: "", disciplinas: criarDisciplinasPorSerie(serie) };
 }
 
 function migrarSerieAntiga(serie: unknown): SerieEscolar {
@@ -183,6 +186,7 @@ function normalizarFilho(valor: any, indice: number): Filho {
     nome: String(valor?.nome ?? `Aluno ${indice + 1}`),
     serie,
     turma,
+    fotoUri: String(valor?.fotoUri ?? ""),
     disciplinas: normalizarDisciplinas(serie, valor?.disciplinas),
   };
 }
@@ -560,6 +564,55 @@ export default function HomeScreen() {
     }
   }
 
+  async function alterarFotoAluno() {
+    try {
+      const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permissao.granted) {
+        setMensagem("Permita o acesso às fotos para escolher uma imagem do aluno.");
+        return;
+      }
+
+      const resultado = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.45,
+        base64: true,
+      });
+
+      if (resultado.canceled) return;
+
+      const imagem = resultado.assets?.[0];
+      if (!imagem) return;
+
+      const fotoUri = imagem.base64
+        ? `data:image/jpeg;base64,${imagem.base64}`
+        : imagem.uri;
+
+      const filhosAtualizados = filhos.map((item, index) => {
+        if (index !== filhoSelecionado) return item;
+        return { ...item, fotoUri };
+      });
+
+      setFilhos(filhosAtualizados);
+      setMensagem("Foto do aluno atualizada.");
+    } catch (erro) {
+      console.log("Erro ao escolher foto:", erro);
+      setMensagem("Não foi possível escolher a foto agora.");
+    }
+  }
+
+  function removerFotoAluno() {
+    const filhosAtualizados = filhos.map((item, index) => {
+      if (index !== filhoSelecionado) return item;
+      return { ...item, fotoUri: "" };
+    });
+
+    setFilhos(filhosAtualizados);
+    setMensagem("Foto removida.");
+  }
+
   function renderCabecalho() {
     return (
       <>
@@ -569,7 +622,11 @@ export default function HomeScreen() {
         <View style={[styles.cardAluno, { backgroundColor: classificacaoGeral.corFundo, borderColor: classificacaoGeral.corBorda }]}>
           <View style={styles.areaPerfil}>
             <View style={[styles.avatar, { backgroundColor: classificacaoGeral.corAvatar }]}>
-              <Text style={styles.avatarTexto}>{obterIniciais(filho.nome)}</Text>
+              {filho.fotoUri ? (
+                <Image source={{ uri: filho.fotoUri }} style={styles.avatarImagem} />
+              ) : (
+                <Text style={styles.avatarTexto}>{obterIniciais(filho.nome)}</Text>
+              )}
             </View>
             <View style={styles.areaDadosAluno}>
               <Text style={styles.alunoNome}>{filho.nome}</Text>
@@ -783,6 +840,10 @@ export default function HomeScreen() {
           <View style={styles.linhaAcoes}>
             <Pressable style={styles.botaoSecundario} onPress={abrirNovoFilho}><Text style={styles.botaoSecundarioTexto}>Adicionar aluno</Text></Pressable>
             <Pressable style={styles.botaoSecundario} onPress={abrirEditarFilho}><Text style={styles.botaoSecundarioTexto}>Editar aluno</Text></Pressable>
+            <Pressable style={styles.botaoSecundario} onPress={alterarFotoAluno}><Text style={styles.botaoSecundarioTexto}>Alterar foto</Text></Pressable>
+            {filho.fotoUri ? (
+              <Pressable style={styles.botaoCancelar} onPress={removerFotoAluno}><Text style={styles.botaoCancelarTexto}>Remover foto</Text></Pressable>
+            ) : null}
           </View>
           <Text style={styles.info}>Alunos cadastrados: {filhos.length}/{LIMITE_FILHOS}</Text>
           {mensagem ? <Text style={styles.mensagem}>{mensagem}</Text> : null}
@@ -844,7 +905,8 @@ const styles = StyleSheet.create({
   subtitulo: { marginTop: 22, marginBottom: 10, fontSize: 21, fontWeight: "bold", color: "#1f2937" },
   cardAluno: { marginTop: 20, borderRadius: 24, padding: 18, borderWidth: 1 },
   areaPerfil: { flexDirection: "row", alignItems: "center", gap: 14 },
-  avatar: { width: 78, height: 78, borderRadius: 39, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "#ffffff" },
+  avatar: { width: 78, height: 78, borderRadius: 39, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "#ffffff", overflow: "hidden" },
+  avatarImagem: { width: "100%", height: "100%", borderRadius: 39 },
   avatarTexto: { color: "#ffffff", fontSize: 24, fontWeight: "bold" },
   areaDadosAluno: { flex: 1 },
   alunoNome: { fontSize: 25, fontWeight: "bold", color: "#111827" },
