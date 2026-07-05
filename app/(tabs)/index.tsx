@@ -774,8 +774,18 @@ export default function HomeScreen() {
   function renderCabecalho() {
     return (
       <>
-        <Text style={styles.titulo}>Média CMB</Text>
-        <Text style={styles.descricao}>Acompanhe notas, trimestres e recuperação com clareza.</Text>
+        <View style={styles.areaLogoTitulo}>
+ <Image
+  source={require("../../assets/images/Icon-512-cmb.png")}
+  style={styles.logoApp}
+/>
+
+  <Text style={styles.titulo}>Média CMB</Text>
+
+  <Text style={styles.descricao}>
+    Acompanhe notas, trimestres e recuperação com clareza.
+  </Text>
+</View>
 
         <View style={[styles.cardAluno, { backgroundColor: classificacaoGeral.corFundo, borderColor: classificacaoGeral.corBorda }]}>
           <View style={styles.areaPerfil}>
@@ -1065,16 +1075,42 @@ export default function HomeScreen() {
       {abaAtiva === "notas" && renderNotas()}
       {abaAtiva === "planejamento" && renderPlanejamento()}
       {abaAtiva === "alunos" && renderAlunos()}
-      <Text style={styles.rodape}>Desenvolvido por 1º Sgt Evandro</Text>
-      <Text style={styles.rodapeSub}>Para uso pessoal</Text>
+      <Text style={styles.rodape}>Desenvolvido por EDS e Dupont</Text>
+<Text style={styles.rodapeSub}>
+  Seus dados ficam salvos apenas neste dispositivo.
+</Text>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { padding: 20, paddingTop: 58, paddingBottom: 80, backgroundColor: "#f3f6fb", flexGrow: 1 },
-  titulo: { fontSize: 38, fontWeight: "bold", color: "#111827" },
-  descricao: { marginTop: 8, fontSize: 16, color: "#4b5563", lineHeight: 22 },
+  areaLogoTitulo: {
+  alignItems: "center",
+  marginBottom: 8,
+},
+
+logoApp: {
+  width: 64,
+  height: 64,
+  borderRadius: 32,
+  marginBottom: 10,
+},
+
+titulo: {
+  fontSize: 38,
+  fontWeight: "bold",
+  color: "#111827",
+  textAlign: "center",
+},
+
+descricao: {
+  marginTop: 8,
+  fontSize: 16,
+  color: "#4b5563",
+  lineHeight: 22,
+  textAlign: "center",
+},
   subtitulo: { marginTop: 22, marginBottom: 10, fontSize: 21, fontWeight: "bold", color: "#1f2937" },
   cardAluno: { marginTop: 20, borderRadius: 24, padding: 18, borderWidth: 1 },
   areaPerfil: { flexDirection: "row", alignItems: "center", gap: 14 },
