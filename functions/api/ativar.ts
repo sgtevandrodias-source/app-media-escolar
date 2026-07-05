@@ -60,11 +60,10 @@ export const onRequestPost = async (context: {
       );
     }
 
-    const licenca = await env.DB.prepare(
-      SELECT id, chave, status, device_1, device_2, ativada_1_em, ativada_2_em
-       FROM licencas
-       WHERE chave = ?
-    )
+    const licenca = await env.DB
+      .prepare(
+        "SELECT id, chave, status, device_1, device_2, ativada_1_em, ativada_2_em FROM licencas WHERE chave = ?"
+      )
       .bind(chave)
       .first<{
         id: number;
@@ -107,11 +106,10 @@ export const onRequestPost = async (context: {
     const agora = new Date().toISOString();
 
     if (!licenca.device_1) {
-      await env.DB.prepare(
-        UPDATE licencas
-         SET device_1 = ?, ativada_1_em = ?
-         WHERE chave = ?
-      )
+      await env.DB
+        .prepare(
+          "UPDATE licencas SET device_1 = ?, ativada_1_em = ? WHERE chave = ?"
+        )
         .bind(deviceId, agora, chave)
         .run();
 
@@ -123,11 +121,10 @@ export const onRequestPost = async (context: {
     }
 
     if (!licenca.device_2) {
-      await env.DB.prepare(
-        UPDATE licencas
-         SET device_2 = ?, ativada_2_em = ?
-         WHERE chave = ?
-      )
+      await env.DB
+        .prepare(
+          "UPDATE licencas SET device_2 = ?, ativada_2_em = ? WHERE chave = ?"
+        )
         .bind(deviceId, agora, chave)
         .run();
 
