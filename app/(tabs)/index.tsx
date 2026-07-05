@@ -574,13 +574,24 @@ export default function HomeScreen() {
             <View style={styles.areaDadosAluno}>
               <Text style={styles.alunoNome}>{filho.nome}</Text>
               <Text style={styles.infoCompacta}>{obterRotuloSerie(filho.serie)} • Turma {filho.turma}</Text>
-              <View style={styles.linhaMediaGeral}>
-                <Text style={[styles.mediaGeral, { color: classificacaoGeral.corTexto }]}>{mostrarNota(mediaGeralAluno)}</Text>
-                <View>
-                  <Text style={[styles.statusTitulo, { color: classificacaoGeral.corTexto }]}>{classificacaoGeral.titulo}</Text>
-                  <Text style={[styles.alertaMedia, { color: classificacaoGeral.corTexto }]}>{classificacaoGeral.mensagem}</Text>
-                </View>
-              </View>
+            </View>
+          </View>
+
+          <View style={[styles.blocoMediaGeral, { borderColor: classificacaoGeral.corBorda }]}>
+            <View style={styles.colunaNotaGeral}>
+              <Text style={styles.rotuloMediaGeral}>Média geral</Text>
+              <Text style={[styles.mediaGeral, { color: classificacaoGeral.corTexto }]}>
+                {mostrarNota(mediaGeralAluno)}
+              </Text>
+            </View>
+
+            <View style={styles.colunaStatusGeral}>
+              <Text style={[styles.statusTitulo, { color: classificacaoGeral.corTexto }]}>
+                {classificacaoGeral.titulo}
+              </Text>
+              <Text style={[styles.alertaMedia, { color: classificacaoGeral.corTexto }]}>
+                {classificacaoGeral.mensagem}
+              </Text>
             </View>
           </View>
         </View>
@@ -837,10 +848,21 @@ const styles = StyleSheet.create({
   avatarTexto: { color: "#ffffff", fontSize: 24, fontWeight: "bold" },
   areaDadosAluno: { flex: 1 },
   alunoNome: { fontSize: 25, fontWeight: "bold", color: "#111827" },
-  linhaMediaGeral: { marginTop: 10, flexDirection: "row", alignItems: "center", gap: 14 },
-  mediaGeral: { fontSize: 36, fontWeight: "bold" },
-  statusTitulo: { fontSize: 18, fontWeight: "bold" },
-  alertaMedia: { marginTop: 2, fontSize: 14, fontWeight: "bold" },
+  blocoMediaGeral: {
+    marginTop: 16,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 14,
+  },
+  colunaNotaGeral: { flexShrink: 0 },
+  colunaStatusGeral: { flex: 1, alignItems: "flex-end" },
+  rotuloMediaGeral: { fontSize: 13, fontWeight: "bold", color: "#64748b", marginBottom: 2 },
+  mediaGeral: { fontSize: 34, fontWeight: "bold" },
+  statusTitulo: { fontSize: 20, fontWeight: "bold", textAlign: "right" },
+  alertaMedia: { marginTop: 2, fontSize: 14, fontWeight: "bold", textAlign: "right" },
   menuPrincipal: { marginTop: 16, backgroundColor: "#e5e7eb", borderRadius: 18, padding: 5, flexDirection: "row", gap: 4 },
   menuBotao: { flex: 1, borderRadius: 14, paddingVertical: 10, alignItems: "center" },
   menuBotaoAtivo: { backgroundColor: "#ffffff", elevation: 2 },

@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "media-escolar-app",
-    "slug": "media-escolar-app",
+    "name": "Média CMB",
+    "slug": "media-cmb",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mediaescolarapp",
-    "userInterfaceStyle": "automatic",
+    "scheme": "mediacmb",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
@@ -23,7 +23,8 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro"
     },
     "plugins": [
       "expo-router",
@@ -35,7 +36,7 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#ffffff"
           }
         }
       ]
