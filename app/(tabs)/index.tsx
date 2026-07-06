@@ -31,6 +31,12 @@ type Disciplina = {
   trimestres: Record<Trimestre, NotasTrimestre>;
 };
 
+type DadosAnoLetivo = {
+  serie: SerieEscolar;
+  turma: string;
+  disciplinas: Disciplina[];
+};
+
 type Filho = {
   id: string;
   nome: string;
@@ -38,6 +44,8 @@ type Filho = {
   turma: string;
   fotoUri?: string;
   disciplinas: Disciplina[];
+  anoLetivoAtivo?: string;
+  anosLetivos?: Record<string, DadosAnoLetivo>;
 };
 
 type DadosSalvos = { filhos: Filho[] };
@@ -77,6 +85,8 @@ const CHAVE_STORAGE = "media-escolar-dados";
 const CHAVE_DEVICE_ID = "media-cmb-device-id";
 const CHAVE_LICENCA_LOCAL = "media-cmb-licenca-local";
 const LIMITE_FILHOS = 5;
+
+const ANO_LETIVO_PADRAO = String(new Date().getFullYear());
 
 const SERIES: SerieConfig[] = [
   { id: "6EF", rotulo: "6º Ano EF", turmaInicial: 601, turmaFinal: 620, nivel: "Ensino Fundamental" },
@@ -156,7 +166,24 @@ function turmaPadrao(serie: SerieEscolar) {
 }
 
 function criarFilho(nome = "Aluno 1", serie: SerieEscolar = "7EF", turma = turmaPadrao("7EF")): Filho {
-  return { id: String(Date.now()), nome, serie, turma, fotoUri: "", disciplinas: criarDisciplinasPorSerie(serie) };
+  const disciplinas = criarDisciplinasPorSerie(serie);
+
+  return {
+    id: String(Date.now()),
+    nome,
+    serie,
+    turma,
+    fotoUri: "",
+    disciplinas,
+    anoLetivoAtivo: ANO_LETIVO_PADRAO,
+    anosLetivos: {
+      [ANO_LETIVO_PADRAO]: {
+        serie,
+        turma,
+        disciplinas,
+      },
+    },
+  };
 }
 
 function migrarSerieAntiga(serie: unknown): SerieEscolar {
@@ -191,22 +218,73 @@ function normalizarDisciplinas(serie: SerieEscolar, disciplinasSalvas: any): Dis
     };
   });
 }
+function normalizarAnoLetivo(valor: any, serieFallback: SerieEscolar, turmaFallback: string, disciplinasFallback: any): DadosAnoLetivo {
+  const serie = migrarSerieAntiga(valor?.serie ?? serieFallback);
+  const turmas = gerarTurmas(serie);
+  const turma = turmas.includes(String(valor?.turma ?? turmaFallback))
+    ? String(valor?.turma ?? turmaFallback)
+    : turmaPadrao(serie);
 
+  return {
+    serie,
+    turma,
+    disciplinas: normalizarDisciplinas(serie, valor?.disciplinas ?? disciplinasFallback),
+  };
+}
+
+function obterDadosAnoLetivo(filho: Filho, anoLetivo: string): DadosAnoLetivo {
+  const dadosAno = filho.anosLetivos?.[anoLetivo];
+
+  if (dadosAno) {
+    return dadosAno;
+  }
+
+  return {
+    serie: filho.serie,
+    turma: filho.turma,
+    disciplinas: filho.disciplinas,
+  };
+}
 function normalizarFilho(valor: any, indice: number): Filho {
   const serie = migrarSerieAntiga(valor?.serie);
   const turmas = gerarTurmas(serie);
   const turma = turmas.includes(String(valor?.turma)) ? String(valor?.turma) : turmaPadrao(serie);
+  const disciplinas = normalizarDisciplinas(serie, valor?.disciplinas);
+
+  const anosLetivosOriginais = valor?.anosLetivos && typeof valor.anosLetivos === "object" ? valor.anosLetivos : {};
+  const anosLetivosNormalizados: Record<string, DadosAnoLetivo> = {};
+
+  Object.keys(anosLetivosOriginais).forEach((ano) => {
+    anosLetivosNormalizados[ano] = normalizarAnoLetivo(
+      anosLetivosOriginais[ano],
+      serie,
+      turma,
+      disciplinas
+    );
+  });
+
+  if (!anosLetivosNormalizados[ANO_LETIVO_PADRAO]) {
+    anosLetivosNormalizados[ANO_LETIVO_PADRAO] = {
+      serie,
+      turma,
+      disciplinas,
+    };
+  }
+
+  const anoLetivoAtivo = String(valor?.anoLetivoAtivo ?? ANO_LETIVO_PADRAO);
+  const dadosAnoAtivo = anosLetivosNormalizados[anoLetivoAtivo] ?? anosLetivosNormalizados[ANO_LETIVO_PADRAO];
 
   return {
     id: String(valor?.id ?? `${Date.now()}-${indice}`),
     nome: String(valor?.nome ?? `Aluno ${indice + 1}`),
-    serie,
-    turma,
+    serie: dadosAnoAtivo.serie,
+    turma: dadosAnoAtivo.turma,
     fotoUri: String(valor?.fotoUri ?? ""),
-    disciplinas: normalizarDisciplinas(serie, valor?.disciplinas),
+    disciplinas: dadosAnoAtivo.disciplinas,
+    anoLetivoAtivo,
+    anosLetivos: anosLetivosNormalizados,
   };
 }
-
 function textoParaNumero(valor: string): number | null {
   if (!valor.trim()) return null;
   const numero = Number(valor.replace(",", "."));
@@ -444,6 +522,7 @@ export default function HomeScreen() {
   const [turmaFormulario, setTurmaFormulario] = useState(turmaPadrao("7EF"));
   const [mensagem, setMensagem] = useState("");
   const [abaAtiva, setAbaAtiva] = useState<AbaApp>("inicio");
+  const [anoLetivoSelecionado, setAnoLetivoSelecionado] = useState(ANO_LETIVO_PADRAO);
   const [licencaCarregada, setLicencaCarregada] = useState(false);
   const [licencaAtiva, setLicencaAtiva] = useState(false);
   const [deviceId, setDeviceId] = useState("");
@@ -526,8 +605,17 @@ export default function HomeScreen() {
     salvarDados();
   }, [filhos, dadosCarregados]);
 
-  const filho = filhos[filhoSelecionado] ?? filhos[0];
-  const disciplina = filho.disciplinas[disciplinaSelecionada] ?? filho.disciplinas[0];
+  const filhoBase = filhos[filhoSelecionado] ?? filhos[0];
+const dadosAnoLetivo = obterDadosAnoLetivo(filhoBase, anoLetivoSelecionado);
+
+const filho: Filho = {
+  ...filhoBase,
+  serie: dadosAnoLetivo.serie,
+  turma: dadosAnoLetivo.turma,
+  disciplinas: dadosAnoLetivo.disciplinas,
+};
+
+const disciplina = filho.disciplinas[disciplinaSelecionada] ?? filho.disciplinas[0];
   const trimestre = disciplina.trimestres[trimestreSelecionado];
   const mediaAP = calcularMediaAP(trimestre);
   const np = calcularNP(disciplina, trimestre);
@@ -540,26 +628,63 @@ export default function HomeScreen() {
   const resumoDisciplinas = calcularResumoDisciplinas(filho);
   const npDesejadaNumero = textoParaNumero(npDesejada) ?? 8.0;
   const nomeAP = prefixoAP(trimestreSelecionado);
+function obterAnosDisponiveis() {
+  const anos = new Set<string>();
 
+  filhos.forEach((item) => {
+    if (item.anosLetivos) {
+      Object.keys(item.anosLetivos).forEach((ano) => anos.add(ano));
+    }
+  });
+
+  anos.add(ANO_LETIVO_PADRAO);
+
+  const anoAtualNumero = Number(ANO_LETIVO_PADRAO);
+  anos.add(String(anoAtualNumero + 1));
+
+  return Array.from(anos).sort();
+}
   function atualizarCampo(campo: keyof NotasTrimestre, valor: string) {
-    const novosFilhos = filhos.map((filhoAtual, indexFilho) => {
-      if (indexFilho !== filhoSelecionado) return filhoAtual;
+  const novosFilhos = filhos.map((filhoAtual, indexFilho) => {
+    if (indexFilho !== filhoSelecionado) return filhoAtual;
+
+    const dadosAtuais = obterDadosAnoLetivo(filhoAtual, anoLetivoSelecionado);
+
+    const disciplinasAtualizadas = dadosAtuais.disciplinas.map((disc, indexDisciplina) => {
+      if (indexDisciplina !== disciplinaSelecionada) return disc;
+
       return {
-        ...filhoAtual,
-        disciplinas: filhoAtual.disciplinas.map((disc, indexDisciplina) => {
-          if (indexDisciplina !== disciplinaSelecionada) return disc;
-          return {
-            ...disc,
-            trimestres: {
-              ...disc.trimestres,
-              [trimestreSelecionado]: { ...disc.trimestres[trimestreSelecionado], [campo]: valor },
-            },
-          };
-        }),
+        ...disc,
+        trimestres: {
+          ...disc.trimestres,
+          [trimestreSelecionado]: {
+            ...disc.trimestres[trimestreSelecionado],
+            [campo]: valor,
+          },
+        },
       };
     });
-    setFilhos(novosFilhos);
-  }
+
+    const anosLetivosAtualizados = {
+      ...(filhoAtual.anosLetivos ?? {}),
+      [anoLetivoSelecionado]: {
+        ...dadosAtuais,
+        disciplinas: disciplinasAtualizadas,
+      },
+    };
+
+    return {
+      ...filhoAtual,
+      serie: dadosAtuais.serie,
+      turma: dadosAtuais.turma,
+      disciplinas: disciplinasAtualizadas,
+      anoLetivoAtivo: anoLetivoSelecionado,
+      anosLetivos: anosLetivosAtualizados,
+    };
+  });
+
+  setFilhos(novosFilhos);
+}
 
   function abrirNovoFilho() {
     if (filhos.length >= LIMITE_FILHOS) {
@@ -616,18 +741,36 @@ export default function HomeScreen() {
       return;
     }
 
-    if (modoFormulario === "editar") {
-      const filhosAtualizados = filhos.map((item, index) => {
-        if (index !== filhoSelecionado) return item;
-        const mudouSerie = item.serie !== serieFormulario;
-        return {
-          ...item,
-          nome: nomeLimpo,
-          serie: serieFormulario,
-          turma: turmaFormulario,
-          disciplinas: mudouSerie ? criarDisciplinasPorSerie(serieFormulario) : item.disciplinas,
-        };
-      });
+   if (modoFormulario === "editar") {
+  const filhosAtualizados = filhos.map((item, index) => {
+    if (index !== filhoSelecionado) return item;
+
+    const dadosAtuais = obterDadosAnoLetivo(item, anoLetivoSelecionado);
+    const mudouSerie = dadosAtuais.serie !== serieFormulario;
+
+    const disciplinasAtualizadas = mudouSerie
+      ? criarDisciplinasPorSerie(serieFormulario)
+      : dadosAtuais.disciplinas;
+
+    const anosLetivosAtualizados = {
+      ...(item.anosLetivos ?? {}),
+      [anoLetivoSelecionado]: {
+        serie: serieFormulario,
+        turma: turmaFormulario,
+        disciplinas: disciplinasAtualizadas,
+      },
+    };
+
+    return {
+      ...item,
+      nome: nomeLimpo,
+      serie: serieFormulario,
+      turma: turmaFormulario,
+      disciplinas: disciplinasAtualizadas,
+      anoLetivoAtivo: anoLetivoSelecionado,
+      anosLetivos: anosLetivosAtualizados,
+    };
+  });
       setFilhos(filhosAtualizados);
       setDisciplinaSelecionada(0);
       setTrimestreSelecionado("t1");
@@ -944,11 +1087,45 @@ function importarBackup() {
             </View>
           </View>
         </View>
+      
+        
+                <View style={styles.cardAnoLetivo}>
+          <Text style={styles.labelAnoLetivo}>Ano letivo</Text>
+
+          <View style={styles.listaBotoes}>
+            {obterAnosDisponiveis().map((ano) => (
+              <Pressable
+                key={ano}
+                style={[styles.botaoAno, anoLetivoSelecionado === ano && styles.botaoAtivo]}
+                onPress={() => {
+                  setAnoLetivoSelecionado(ano);
+                  setDisciplinaSelecionada(0);
+                  setTrimestreSelecionado("t1");
+                  setMensagem("");
+                }}
+              >
+                <Text style={[styles.botaoTexto, anoLetivoSelecionado === ano && styles.botaoTextoAtivo]}>
+                  {ano}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <Text style={styles.infoCompacta}>
+            As notas são salvas separadamente para cada ano letivo.
+          </Text>
+        </View>
 
         <View style={styles.menuPrincipal}>
-          {([ ["inicio", "Início"], ["notas", "Notas"], ["planejamento", "Planejamento"], ["alunos", "Alunos"] ] as [AbaApp, string][]).map(([aba, rotulo]) => (
-            <Pressable key={aba} style={[styles.menuBotao, abaAtiva === aba && styles.menuBotaoAtivo]} onPress={() => setAbaAtiva(aba)}>
-              <Text style={[styles.menuTexto, abaAtiva === aba && styles.menuTextoAtivo]}>{rotulo}</Text>
+          {([["inicio", "Início"], ["notas", "Notas"], ["planejamento", "Planejamento"], ["alunos", "Alunos"]] as [AbaApp, string][]).map(([aba, rotulo]) => (
+            <Pressable
+              key={aba}
+              style={[styles.menuBotao, abaAtiva === aba && styles.menuBotaoAtivo]}
+              onPress={() => setAbaAtiva(aba)}
+            >
+              <Text style={[styles.menuTexto, abaAtiva === aba && styles.menuTextoAtivo]}>
+                {rotulo}
+              </Text>
             </Pressable>
           ))}
         </View>
@@ -1231,6 +1408,29 @@ const styles = StyleSheet.create({
   areaLogoTitulo: {
   alignItems: "center",
   marginBottom: 8,
+},
+cardAnoLetivo: {
+  marginTop: 16,
+  backgroundColor: "#ffffff",
+  borderRadius: 18,
+  padding: 14,
+  borderWidth: 1,
+  borderColor: "#dbeafe",
+},
+
+labelAnoLetivo: {
+  fontSize: 15,
+  fontWeight: "bold",
+  color: "#1f2937",
+},
+
+botaoAno: {
+  paddingVertical: 10,
+  paddingHorizontal: 16,
+  borderRadius: 999,
+  backgroundColor: "#ffffff",
+  borderWidth: 1,
+  borderColor: "#d1d5db",
 },
 caixaBackup: {
   marginTop: 18,
