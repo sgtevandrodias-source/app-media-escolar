@@ -3,6 +3,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
 import {
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -64,6 +65,12 @@ type LicencaLocal = {
   chave: string;
   deviceId: string;
   ativadaEm: string;
+};
+type BackupMediaCMB = {
+  app: "MEDIA_CMB";
+  versaoBackup: 1;
+  exportadoEm: string;
+  filhos: Filho[];
 };
 
 const CHAVE_STORAGE = "media-escolar-dados";
@@ -414,7 +421,16 @@ function gerarDeviceId() {
 function normalizarChave(valor: string) {
   return valor.trim().toUpperCase().replace(/\s+/g, "");
 }
+function gerarNomeArquivoBackup() {
+  const agora = new Date();
+  const ano = agora.getFullYear();
+  const mes = String(agora.getMonth() + 1).padStart(2, "0");
+  const dia = String(agora.getDate()).padStart(2, "0");
+  const hora = String(agora.getHours()).padStart(2, "0");
+  const minuto = String(agora.getMinutes()).padStart(2, "0");
 
+  return `media-cmb-backup-${ano}-${mes}-${dia}-${hora}${minuto}.json`;
+}
 export default function HomeScreen() {
   const [filhos, setFilhos] = useState<Filho[]>([criarFilho("Aluno 1", "7EF", turmaPadrao("7EF"))]);
   const [filhoSelecionado, setFilhoSelecionado] = useState(0);
@@ -669,7 +685,115 @@ export default function HomeScreen() {
     setFilhos(filhosAtualizados);
     setMensagem("Foto removida.");
   }
+async function exportarBackup() {
+  try {
+    const backup: BackupMediaCMB = {
+      app: "MEDIA_CMB",
+      versaoBackup: 1,
+      exportadoEm: new Date().toISOString(),
+      filhos,
+    };
 
+    const conteudo = JSON.stringify(backup, null, 2);
+    const nomeArquivo = gerarNomeArquivoBackup();
+
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      const blob = new Blob([conteudo], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = nomeArquivo;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(url);
+
+      setMensagem("Backup exportado com sucesso. Guarde o arquivo em local seguro.");
+      return;
+    }
+
+    setMensagem("A exportação de backup está disponível na versão web/PWA do app.");
+  } catch (erro) {
+    console.log("Erro ao exportar backup:", erro);
+    setMensagem("Não foi possível exportar o backup agora.");
+  }
+}
+
+function importarBackup() {
+  try {
+    if (Platform.OS !== "web" || typeof document === "undefined") {
+      setMensagem("A importação de backup está disponível na versão web/PWA do app.");
+      return;
+    }
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,application/json";
+
+    input.onchange = () => {
+      const arquivo = input.files?.[0];
+
+      if (!arquivo) {
+        return;
+      }
+
+      const leitor = new FileReader();
+
+      leitor.onload = async () => {
+        try {
+          const texto = String(leitor.result ?? "");
+          const dados = JSON.parse(texto);
+
+          if (dados?.app !== "MEDIA_CMB" || !Array.isArray(dados?.filhos)) {
+            setMensagem("Arquivo de backup inválido para o Média CMB.");
+            return;
+          }
+
+          const confirmar =
+            typeof window !== "undefined"
+              ? window.confirm(
+                  "Ao importar este backup, os dados atuais deste aparelho serão substituídos. Deseja continuar?"
+                )
+              : true;
+
+          if (!confirmar) {
+            setMensagem("Importação cancelada.");
+            return;
+          }
+
+          const filhosNormalizados = dados.filhos
+            .slice(0, LIMITE_FILHOS)
+            .map((item: any, index: number) => normalizarFilho(item, index));
+
+          if (!filhosNormalizados.length) {
+            setMensagem("O backup não possui alunos válidos.");
+            return;
+          }
+
+          setFilhos(filhosNormalizados);
+          setFilhoSelecionado(0);
+          setDisciplinaSelecionada(0);
+          setTrimestreSelecionado("t1");
+          setAbaAtiva("inicio");
+          setModoFormulario(null);
+          setMensagem("Backup importado com sucesso neste dispositivo.");
+        } catch (erro) {
+          console.log("Erro ao importar backup:", erro);
+          setMensagem("Não foi possível importar este arquivo de backup.");
+        }
+      };
+
+      leitor.readAsText(arquivo);
+    };
+
+    input.click();
+  } catch (erro) {
+    console.log("Erro ao abrir importação:", erro);
+    setMensagem("Não foi possível abrir o seletor de arquivo.");
+  }
+}
   async function ativarLicenca() {
     const chave = normalizarChave(chaveAtivacao);
 
@@ -1014,7 +1138,26 @@ export default function HomeScreen() {
             ) : null}
           </View>
           <Text style={styles.info}>Alunos cadastrados: {filhos.length}/{LIMITE_FILHOS}</Text>
-          {mensagem ? <Text style={styles.mensagem}>{mensagem}</Text> : null}
+
+<View style={styles.caixaBackup}>
+  <Text style={styles.cardTitulo}>Backup dos dados</Text>
+  <Text style={styles.info}>
+    Exporte um arquivo para guardar ou transferir as notas para outro aparelho.
+    O Média CMB não envia nem armazena suas notas em servidor.
+  </Text>
+
+  <View style={styles.linhaAcoes}>
+    <Pressable style={styles.botaoSalvar} onPress={exportarBackup}>
+      <Text style={styles.botaoSalvarTexto}>Exportar backup</Text>
+    </Pressable>
+
+    <Pressable style={styles.botaoSecundario} onPress={importarBackup}>
+      <Text style={styles.botaoSecundarioTexto}>Importar backup</Text>
+    </Pressable>
+  </View>
+</View>
+
+{mensagem ? <Text style={styles.mensagem}>{mensagem}</Text> : null}
         </View>
 
         {modoFormulario && (
@@ -1089,7 +1232,14 @@ const styles = StyleSheet.create({
   alignItems: "center",
   marginBottom: 8,
 },
-
+caixaBackup: {
+  marginTop: 18,
+  borderRadius: 18,
+  padding: 14,
+  backgroundColor: "#f8fafc",
+  borderWidth: 1,
+  borderColor: "#dbeafe",
+},
 logoApp: {
   width: 64,
   height: 64,
