@@ -1486,90 +1486,403 @@ function importarBackup() {
     );
   }
 
-  function renderNotas() {
+    function renderNotas() {
     return (
       <>
-        <Text style={styles.subtitulo}>Disciplina</Text>
-        {renderSeletorDisciplina()}
-        <Text style={styles.subtitulo}>Trimestre</Text>
-        {renderSeletorTrimestre()}
+        <View style={styles.cardNotasAlunoNovo}>
+          <View>
+            <Text style={styles.labelHeroNovo}>Estudante</Text>
+            <Text style={styles.nomeNotasAlunoNovo}>{filho.nome}</Text>
+            <Text style={styles.dadosAlunoHeroNovo}>
+              {obterRotuloSerie(filho.serie)} • Turma {filho.turma}
+            </Text>
+          </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitulo}>{disciplina.nome} — {tituloTrimestre(trimestreSelecionado)}</Text>
-          <Text style={styles.label}>{disciplina.nome} - {nomeAP}</Text>
+          <View style={styles.badgeMediaNotasNovo}>
+            <Text style={styles.badgeMediaTextoNovo}>{mostrarNota(mediaGeralAluno)}</Text>
+            <Text style={styles.badgeMediaSubNovo}>Média geral</Text>
+          </View>
+        </View>
 
-          <View style={styles.linhaInputs}>
-            <View style={styles.grupoInput}>
-              <Text style={styles.miniLabel}>{nomeAP}.1</Text>
-              <TextInput style={styles.inputPequeno} value={trimestre.ap1} onChangeText={(valor) => atualizarCampo("ap1", valor)} keyboardType="decimal-pad" placeholder="Ex.: 8.5" placeholderTextColor="#e2e8f0" />
+        <View style={styles.blocoSelecaoNovo}>
+          <Text style={styles.labelSelecaoNovo}>Ano letivo</Text>
+
+          <View style={styles.listaAnosNovo}>
+            {obterAnosDisponiveis().map((ano) => (
+              <Pressable
+                key={ano}
+                style={[
+                  styles.botaoAnoNovo,
+                  anoLetivoSelecionado === ano && styles.botaoAnoAtivoNovo,
+                ]}
+                onPress={() => {
+                  setAnoLetivoSelecionado(ano);
+                  setDisciplinaSelecionada(0);
+                  setTrimestreSelecionado("t1");
+                  setMensagem("");
+                }}
+              >
+                <Text
+                  style={[
+                    styles.botaoAnoTextoNovo,
+                    anoLetivoSelecionado === ano && styles.botaoAnoTextoAtivoNovo,
+                  ]}
+                >
+                  {ano}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.blocoSelecaoNovo}>
+          <Text style={styles.labelSelecaoNovo}>Trimestre</Text>
+          <View style={styles.trimestresNovo}>
+            {(["t1", "t2", "t3"] as Trimestre[]).map((trimestreItem) => (
+              <Pressable
+                key={trimestreItem}
+                style={[
+                  styles.trimestreBotaoNovo,
+                  trimestreSelecionado === trimestreItem && styles.trimestreBotaoAtivoNovo,
+                ]}
+                onPress={() => setTrimestreSelecionado(trimestreItem)}
+              >
+                <Text
+                  style={[
+                    styles.trimestreTextoNovo,
+                    trimestreSelecionado === trimestreItem && styles.trimestreTextoAtivoNovo,
+                  ]}
+                >
+                  {tituloTrimestre(trimestreItem)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.blocoSelecaoNovo}>
+          <Text style={styles.labelSelecaoNovo}>Disciplina</Text>
+          <View style={styles.listaBotoes}>
+            {filho.disciplinas.map((item, index) => (
+              <Pressable
+                key={item.nome}
+                style={[
+                  styles.chipDisciplinaNovo,
+                  disciplinaSelecionada === index && styles.chipDisciplinaAtivoNovo,
+                ]}
+                onPress={() => setDisciplinaSelecionada(index)}
+              >
+                <Text
+                  style={[
+                    styles.chipDisciplinaTextoNovo,
+                    disciplinaSelecionada === index && styles.chipDisciplinaTextoAtivoNovo,
+                  ]}
+                >
+                  {obterSiglaDisciplina(item.nome)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.cardNotasNovo}>
+          <View style={styles.cardNotasTopoNovo}>
+            <View>
+              <Text style={styles.tituloDisciplinaNotasNovo}>
+                {disciplina.nome}
+              </Text>
+              <Text style={styles.subtituloDisciplinaNotasNovo}>
+                {tituloTrimestre(trimestreSelecionado)}
+              </Text>
             </View>
-            <View style={styles.grupoInput}>
-              <Text style={styles.miniLabel}>{nomeAP}.2</Text>
-              <TextInput style={styles.inputPequeno} value={trimestre.ap2} onChangeText={(valor) => atualizarCampo("ap2", valor)} keyboardType="decimal-pad" placeholder="Ex.: 8.5" placeholderTextColor="#e2e8f0" />
+
+            <Text style={styles.badgeSerieNovo}>{obterSiglaDisciplina(disciplina.nome)}</Text>
+          </View>
+
+          <View style={styles.divisorNotasNovo} />
+
+          <Text style={styles.labelSelecaoNovo}>Avaliações periódicas</Text>
+
+          <View style={styles.linhaInputsNotasNovo}>
+            <View style={styles.caixaNotaEditavelNovo}>
+              <Text style={styles.miniLabelNotasNovo}>{nomeAP}.1</Text>
+              <TextInput
+                style={styles.inputNotaGrandeNovo}
+                value={trimestre.ap1}
+                onChangeText={(valor) => atualizarCampo("ap1", valor)}
+                keyboardType="decimal-pad"
+                placeholder="0,0"
+                placeholderTextColor="#cbd5e1"
+              />
+            </View>
+
+            <View style={styles.caixaNotaEditavelNovo}>
+              <Text style={styles.miniLabelNotasNovo}>{nomeAP}.2</Text>
+              <TextInput
+                style={styles.inputNotaGrandeNovo}
+                value={trimestre.ap2}
+                onChangeText={(valor) => atualizarCampo("ap2", valor)}
+                keyboardType="decimal-pad"
+                placeholder="0,0"
+                placeholderTextColor="#cbd5e1"
+              />
             </View>
           </View>
 
-          <Text style={styles.info}>Média das APs: {mostrarNota(mediaAP)}</Text>
+          <View style={styles.linhaResumoNotasNovo}>
+            <Text style={styles.resumoNotasLabelNovo}>Média das APs</Text>
+            <Text style={styles.resumoNotasValorNovo}>{mostrarNota(mediaAP)}</Text>
+          </View>
 
-          <Text style={styles.label}>GIP - Incentivo de Participação</Text>
-          <TextInput style={styles.input} value={trimestre.gip} onChangeText={(valor) => atualizarCampo("gip", valor)} keyboardType="decimal-pad" placeholder="Ex.: 1.0 ou deixe vazio" placeholderTextColor="#e2e8f0" />
+          <Text style={styles.labelSelecaoNovo}>GIP - Incentivo de Participação</Text>
+
+          <View style={styles.caixaGipNovo}>
+            <Text style={styles.gipLabelNovo}>Pontuação adicional</Text>
+            <TextInput
+              style={styles.inputGipNovo}
+              value={trimestre.gip}
+              onChangeText={(valor) => atualizarCampo("gip", valor)}
+              keyboardType="decimal-pad"
+              placeholder="+0,0"
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
 
           {disciplina.usaAE ? (
             <>
-              <Text style={styles.label}>AE - Avaliação de Estudo</Text>
-              <TextInput style={styles.input} value={trimestre.ae} onChangeText={(valor) => atualizarCampo("ae", valor)} keyboardType="decimal-pad" placeholder="Ex.: 7.5" placeholderTextColor="#e2e8f0" />
+              <Text style={styles.labelSelecaoNovo}>AE - Avaliação de Estudo</Text>
+
+              <View style={styles.caixaNotaEditavelCheiaNovo}>
+                <Text style={styles.miniLabelNotasNovo}>Nota da AE</Text>
+                <TextInput
+                  style={styles.inputNotaGrandeNovo}
+                  value={trimestre.ae}
+                  onChangeText={(valor) => atualizarCampo("ae", valor)}
+                  keyboardType="decimal-pad"
+                  placeholder="0,0"
+                  placeholderTextColor="#cbd5e1"
+                />
+              </View>
             </>
           ) : (
-            <Text style={styles.info}>Esta disciplina não possui AE. A NP será calculada pela média das APs + GIP.</Text>
+            <View style={styles.caixaInfoNotasNovo}>
+              <Text style={styles.infoNotasTextoNovo}>
+                Esta disciplina não possui AE. A NP será calculada pela média das APs + GIP.
+              </Text>
+            </View>
           )}
 
-          <View style={styles.caixaResultado}>
-            <Text style={styles.resultado}>NP: {mostrarNota(np)}</Text>
-            <Text style={styles.info}>Nota periódica do trimestre.</Text>
+          <View style={styles.caixaNpNovo}>
+            <View>
+              <Text style={styles.npLabelNovo}>NP</Text>
+              <Text style={styles.npSubNovo}>Nota periódica do trimestre</Text>
+            </View>
+
+            <Text style={styles.npValorNovo}>{mostrarNota(np)}</Text>
           </View>
 
-          <Text style={styles.label}>AR - Avaliação de Recuperação</Text>
-          <TextInput style={styles.input} value={trimestre.ar} onChangeText={(valor) => atualizarCampo("ar", valor)} keyboardType="decimal-pad" placeholder="Opcional" placeholderTextColor="#e2e8f0" />
+          <Text style={styles.labelSelecaoNovo}>AR - Avaliação de Recuperação</Text>
 
-          <Text style={styles.info}>NPR: {mostrarNota(npr)}</Text>
-          <Text style={styles.info}>Nota considerada no boletim: {mostrarNota(notaConsiderada)}</Text>
+          <View style={styles.caixaNotaEditavelCheiaNovo}>
+            <Text style={styles.miniLabelNotasNovo}>Nota da AR</Text>
+            <TextInput
+              style={styles.inputNotaGrandeNovo}
+              value={trimestre.ar}
+              onChangeText={(valor) => atualizarCampo("ar", valor)}
+              keyboardType="decimal-pad"
+              placeholder="Opcional"
+              placeholderTextColor="#cbd5e1"
+            />
+          </View>
+
+          <View style={styles.gridResultadoNotasNovo}>
+            <View style={styles.caixaResultadoPequenaNovo}>
+              <Text style={styles.resultadoPequenoLabelNovo}>NPR</Text>
+              <Text style={styles.resultadoPequenoValorNovo}>{mostrarNota(npr)}</Text>
+            </View>
+
+            <View style={styles.caixaResultadoPequenaNovo}>
+              <Text style={styles.resultadoPequenoLabelNovo}>Nota considerada</Text>
+              <Text style={styles.resultadoPequenoValorNovo}>{mostrarNota(notaConsiderada)}</Text>
+            </View>
+          </View>
         </View>
 
-        <View style={[styles.cardDestaque, { backgroundColor: classificacaoDisciplina.corFundo, borderColor: classificacaoDisciplina.corBorda }]}> 
-          <Text style={styles.cardTitulo}>Resumo da Disc {obterSiglaDisciplina(disciplina.nome)}</Text>
-          <Text style={[styles.resultadoGrande, { color: classificacaoDisciplina.corTexto }]}>Média parcial: {mostrarNota(mediaFinalParcial)}</Text>
-          <Text style={[styles.situacao, { color: classificacaoDisciplina.corTexto }]}>{situacao(mediaFinalParcial)}</Text>
-          <Text style={styles.info}>{calcularNecessidadeFinal(disciplina, 6.0)}</Text>
+        <View
+          style={[
+            styles.cardResumoDisciplinaNovo,
+            {
+              backgroundColor: classificacaoDisciplina.corFundo,
+              borderColor: classificacaoDisciplina.corBorda,
+            },
+          ]}
+        >
+          <Text style={styles.labelHeroNovo}>Resumo da disciplina</Text>
+
+          <Text
+            style={[
+              styles.mediaResumoDisciplinaNovo,
+              { color: classificacaoDisciplina.corTexto },
+            ]}
+          >
+            {mostrarNota(mediaFinalParcial)}
+          </Text>
+
+          <Text
+            style={[
+              styles.statusResumoDisciplinaNovo,
+              { color: classificacaoDisciplina.corTexto },
+            ]}
+          >
+            {classificacaoDisciplina.titulo} — {classificacaoDisciplina.mensagem}
+          </Text>
+
+          <Text style={styles.infoResumoDisciplinaNovo}>
+            {calcularNecessidadeFinal(disciplina, 6.0)}
+          </Text>
         </View>
       </>
     );
   }
 
-  function renderPlanejamento() {
+    function renderPlanejamento() {
     return (
       <>
-        <Text style={styles.subtitulo}>Disciplina</Text>
-        {renderSeletorDisciplina()}
-        <Text style={styles.subtitulo}>Trimestre</Text>
-        {renderSeletorTrimestre()}
+        <View style={styles.cardPlanejamentoTopoNovo}>
+          <Text style={styles.labelHeroNovo}>Planejamento</Text>
+          <Text style={styles.tituloPlanejamentoNovo}>
+            Quanto precisa tirar na AE?
+          </Text>
+          <Text style={styles.infoPlanejamentoNovo}>
+            Informe a NP desejada no trimestre. O app calcula a nota mínima
+            necessária na AE considerando as APs e o GIP já lançados.
+          </Text>
+        </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitulo}>Quanto precisa tirar na AE?</Text>
+        <View style={styles.blocoSelecaoNovo}>
+          <Text style={styles.labelSelecaoNovo}>Disciplina</Text>
+          <View style={styles.listaBotoes}>
+            {filho.disciplinas.map((item, index) => (
+              <Pressable
+                key={item.nome}
+                style={[
+                  styles.chipDisciplinaNovo,
+                  disciplinaSelecionada === index && styles.chipDisciplinaAtivoNovo,
+                ]}
+                onPress={() => setDisciplinaSelecionada(index)}
+              >
+                <Text
+                  style={[
+                    styles.chipDisciplinaTextoNovo,
+                    disciplinaSelecionada === index && styles.chipDisciplinaTextoAtivoNovo,
+                  ]}
+                >
+                  {obterSiglaDisciplina(item.nome)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.blocoSelecaoNovo}>
+          <Text style={styles.labelSelecaoNovo}>Trimestre</Text>
+          <View style={styles.trimestresNovo}>
+            {(["t1", "t2", "t3"] as Trimestre[]).map((trimestreItem) => (
+              <Pressable
+                key={trimestreItem}
+                style={[
+                  styles.trimestreBotaoNovo,
+                  trimestreSelecionado === trimestreItem && styles.trimestreBotaoAtivoNovo,
+                ]}
+                onPress={() => setTrimestreSelecionado(trimestreItem)}
+              >
+                <Text
+                  style={[
+                    styles.trimestreTextoNovo,
+                    trimestreSelecionado === trimestreItem && styles.trimestreTextoAtivoNovo,
+                  ]}
+                >
+                  {tituloTrimestre(trimestreItem)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.cardPlanejamentoNovo}>
+          <View style={styles.cardNotasTopoNovo}>
+            <View>
+              <Text style={styles.tituloDisciplinaNotasNovo}>
+                {disciplina.nome}
+              </Text>
+              <Text style={styles.subtituloDisciplinaNotasNovo}>
+                {tituloTrimestre(trimestreSelecionado)}
+              </Text>
+            </View>
+
+            <Text style={styles.badgeSerieNovo}>
+              {obterSiglaDisciplina(disciplina.nome)}
+            </Text>
+          </View>
+
+          <View style={styles.divisorNotasNovo} />
+
           {disciplina.usaAE ? (
             <>
-              <Text style={styles.info}>Informe abaixo a média desejada no trimestre. O app calcula a nota mínima que deve ser alcançada na AE do trimestre, considerando as APs e o GIP já lançados.</Text>
-              <View style={styles.cardMiniResumo}>
-                <Text style={styles.infoCompacta}>Disciplina: {disciplina.nome}</Text>
-                <Text style={styles.infoCompacta}>Trimestre: {tituloTrimestre(trimestreSelecionado)}</Text>
-                <Text style={styles.infoCompacta}>Média das APs: {mostrarNota(mediaAP)}</Text>
-                <Text style={styles.infoCompacta}>GIP informado: {trimestre.gip || "0"}</Text>
+              <View style={styles.resumoPlanejamentoNovo}>
+                <View style={styles.itemResumoPlanejamentoNovo}>
+                  <Text style={styles.resumoPlanejamentoLabelNovo}>Média das APs</Text>
+                  <Text style={styles.resumoPlanejamentoValorNovo}>
+                    {mostrarNota(mediaAP)}
+                  </Text>
+                </View>
+
+                <View style={styles.itemResumoPlanejamentoNovo}>
+                  <Text style={styles.resumoPlanejamentoLabelNovo}>GIP informado</Text>
+                  <Text style={styles.resumoPlanejamentoValorNovo}>
+                    {trimestre.gip || "0"}
+                  </Text>
+                </View>
               </View>
-              <Text style={styles.label}>NP desejada neste trimestre</Text>
-              <TextInput style={styles.input} value={npDesejada} onChangeText={setNpDesejada} keyboardType="decimal-pad" placeholder="Ex.: 8.0" placeholderTextColor="#e2e8f0" />
-              <Text style={styles.resultado}>{calcularAENecessaria(disciplina, trimestre, npDesejadaNumero)}</Text>
+
+              <Text style={styles.labelSelecaoNovo}>
+                NP desejada neste trimestre
+              </Text>
+
+              <View style={styles.caixaNpDesejadaNovo}>
+                <TextInput
+                  style={styles.inputNpDesejadaNovo}
+                  value={npDesejada}
+                  onChangeText={setNpDesejada}
+                  keyboardType="decimal-pad"
+                  placeholder="Ex.: 8,0"
+                  placeholderTextColor="#94a3b8"
+                />
+              </View>
+
+              <View style={styles.caixaResultadoPlanejamentoNovo}>
+                <Text style={styles.resultadoPlanejamentoLabelNovo}>
+                  Resultado do planejamento
+                </Text>
+
+                <Text style={styles.resultadoPlanejamentoTextoNovo}>
+                  {calcularAENecessaria(disciplina, trimestre, npDesejadaNumero)}
+                </Text>
+              </View>
+
+              <View style={styles.caixaAvisoPlanejamentoNovo}>
+                <Text style={styles.avisoPlanejamentoTextoNovo}>
+                  Dica: se ainda não lançou as APs, preencha primeiro a aba Notas
+                  para o cálculo ficar correto.
+                </Text>
+              </View>
             </>
           ) : (
-            <Text style={styles.info}>Esta disciplina não usa AE. Para melhorar a NP, foque nas APs e no GIP.</Text>
+            <View style={styles.caixaInfoNotasNovo}>
+              <Text style={styles.infoNotasTextoNovo}>
+                Esta disciplina não usa AE. Para melhorar a NP, foque nas APs e no GIP.
+              </Text>
+            </View>
           )}
         </View>
       </>
@@ -2145,6 +2458,459 @@ descricao: {
 
   menuInferiorTextoAtivoNovo: {
     color: "#0037b0",
+  },
+    cardNotasAlunoNovo: {
+    marginTop: 18,
+    backgroundColor: "#ecfdf5",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+    elevation: 2,
+  },
+
+  nomeNotasAlunoNovo: {
+    marginTop: 4,
+    fontSize: 24,
+    color: "#111827",
+    fontWeight: "bold",
+  },
+
+  badgeMediaNotasNovo: {
+    minWidth: 82,
+    alignItems: "flex-end",
+  },
+
+  badgeMediaTextoNovo: {
+    fontSize: 36,
+    color: "#00714d",
+    fontWeight: "bold",
+  },
+
+  badgeMediaSubNovo: {
+    fontSize: 11,
+    color: "#00714d",
+    fontWeight: "bold",
+  },
+
+  blocoSelecaoNovo: {
+    marginTop: 18,
+  },
+
+  labelSelecaoNovo: {
+    marginBottom: 10,
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    letterSpacing: 0.7,
+  },
+
+  trimestresNovo: {
+    flexDirection: "row",
+    gap: 8,
+  },
+
+  trimestreBotaoNovo: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: 16,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    alignItems: "center",
+  },
+
+  trimestreBotaoAtivoNovo: {
+    backgroundColor: "#0037b0",
+    borderColor: "#0037b0",
+  },
+
+  trimestreTextoNovo: {
+    fontSize: 12,
+    color: "#475569",
+    fontWeight: "bold",
+  },
+
+  trimestreTextoAtivoNovo: {
+    color: "#ffffff",
+  },
+
+  chipDisciplinaNovo: {
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 999,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+  },
+
+  chipDisciplinaAtivoNovo: {
+    backgroundColor: "#0037b0",
+    borderColor: "#0037b0",
+  },
+
+  chipDisciplinaTextoNovo: {
+    fontSize: 13,
+    color: "#475569",
+    fontWeight: "bold",
+  },
+
+  chipDisciplinaTextoAtivoNovo: {
+    color: "#ffffff",
+  },
+
+  cardNotasNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 26,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 3,
+  },
+
+  cardNotasTopoNovo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+
+  tituloDisciplinaNotasNovo: {
+    fontSize: 22,
+    color: "#0037b0",
+    fontWeight: "bold",
+  },
+
+  subtituloDisciplinaNotasNovo: {
+    marginTop: 3,
+    fontSize: 14,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+
+  divisorNotasNovo: {
+    height: 1,
+    backgroundColor: "#e2e8f0",
+    marginVertical: 18,
+  },
+
+  linhaInputsNotasNovo: {
+    flexDirection: "row",
+    gap: 12,
+  },
+
+  caixaNotaEditavelNovo: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+  },
+
+  caixaNotaEditavelCheiaNovo: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+  },
+
+  miniLabelNotasNovo: {
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+
+  inputNotaGrandeNovo: {
+    fontSize: 26,
+    color: "#111827",
+    fontWeight: "bold",
+    paddingVertical: 4,
+    paddingHorizontal: 0,
+  },
+
+  linhaResumoNotasNovo: {
+    marginTop: 12,
+    marginBottom: 16,
+    paddingHorizontal: 4,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  resumoNotasLabelNovo: {
+    fontSize: 14,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+
+  resumoNotasValorNovo: {
+    fontSize: 16,
+    color: "#0037b0",
+    fontWeight: "bold",
+  },
+
+  caixaGipNovo: {
+    marginBottom: 16,
+    backgroundColor: "#ecfdf5",
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  gipLabelNovo: {
+    flex: 1,
+    fontSize: 14,
+    color: "#166534",
+    fontWeight: "bold",
+  },
+
+  inputGipNovo: {
+    minWidth: 86,
+    fontSize: 24,
+    color: "#166534",
+    fontWeight: "bold",
+    textAlign: "right",
+  },
+
+  caixaInfoNotasNovo: {
+    marginTop: 4,
+    marginBottom: 16,
+    backgroundColor: "#f8fafc",
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+
+  infoNotasTextoNovo: {
+    fontSize: 13,
+    color: "#64748b",
+    lineHeight: 19,
+    fontWeight: "600",
+  },
+
+  caixaNpNovo: {
+    marginTop: 18,
+    marginBottom: 18,
+    backgroundColor: "#dbeafe",
+    borderRadius: 22,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  npLabelNovo: {
+    fontSize: 14,
+    color: "#0037b0",
+    fontWeight: "bold",
+  },
+
+  npSubNovo: {
+    marginTop: 3,
+    fontSize: 12,
+    color: "#1d4ed8",
+    fontWeight: "600",
+  },
+
+  npValorNovo: {
+    fontSize: 42,
+    color: "#0037b0",
+    fontWeight: "bold",
+  },
+
+  gridResultadoNotasNovo: {
+    marginTop: 16,
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  caixaResultadoPequenaNovo: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+
+  resultadoPequenoLabelNovo: {
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+
+  resultadoPequenoValorNovo: {
+    marginTop: 6,
+    fontSize: 24,
+    color: "#111827",
+    fontWeight: "bold",
+  },
+
+  cardResumoDisciplinaNovo: {
+    marginTop: 18,
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    elevation: 2,
+  },
+
+  mediaResumoDisciplinaNovo: {
+    marginTop: 8,
+    fontSize: 42,
+    fontWeight: "bold",
+  },
+
+  statusResumoDisciplinaNovo: {
+    marginTop: 4,
+    fontSize: 15,
+    fontWeight: "bold",
+  },
+
+  infoResumoDisciplinaNovo: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#475569",
+    lineHeight: 20,
+    fontWeight: "600",
+  },
+    cardPlanejamentoTopoNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 2,
+  },
+
+  tituloPlanejamentoNovo: {
+    marginTop: 6,
+    fontSize: 25,
+    color: "#0037b0",
+    fontWeight: "bold",
+  },
+
+  infoPlanejamentoNovo: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#64748b",
+    lineHeight: 20,
+    fontWeight: "600",
+  },
+
+  cardPlanejamentoNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 26,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 3,
+  },
+
+  resumoPlanejamentoNovo: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+    marginBottom: 18,
+    gap: 10,
+  },
+
+  itemResumoPlanejamentoNovo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  resumoPlanejamentoLabelNovo: {
+    fontSize: 14,
+    color: "#64748b",
+    fontWeight: "700",
+  },
+
+  resumoPlanejamentoValorNovo: {
+    fontSize: 16,
+    color: "#00714d",
+    fontWeight: "bold",
+  },
+
+  caixaNpDesejadaNovo: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+  },
+
+  inputNpDesejadaNovo: {
+    fontSize: 28,
+    color: "#0037b0",
+    fontWeight: "bold",
+    paddingVertical: 4,
+  },
+
+  caixaResultadoPlanejamentoNovo: {
+    marginTop: 18,
+    backgroundColor: "#ecfdf5",
+    borderRadius: 22,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+  },
+
+  resultadoPlanejamentoLabelNovo: {
+    fontSize: 12,
+    color: "#166534",
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    letterSpacing: 0.7,
+  },
+
+  resultadoPlanejamentoTextoNovo: {
+    marginTop: 8,
+    fontSize: 22,
+    color: "#166534",
+    fontWeight: "bold",
+    lineHeight: 30,
+  },
+
+  caixaAvisoPlanejamentoNovo: {
+    marginTop: 14,
+    backgroundColor: "#eff6ff",
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+
+  avisoPlanejamentoTextoNovo: {
+    fontSize: 13,
+    color: "#1d4ed8",
+    lineHeight: 19,
+    fontWeight: "600",
   },
   subtitulo: { marginTop: 22, marginBottom: 10, fontSize: 21, fontWeight: "bold", color: "#1f2937" },
   cardAluno: { marginTop: 20, borderRadius: 24, padding: 18, borderWidth: 1 },
