@@ -1373,32 +1373,110 @@ function importarBackup() {
     );
   }
 
-  function renderInicio() {
+   function renderInicio() {
     return (
       <>
-        <View style={styles.card}>
-          <View style={styles.cardTopo}>
-            <Text style={styles.cardTitulo}>Visão geral</Text>
-            <Text style={styles.badgeTexto}>{obterRotuloSerie(filho.serie)}</Text>
-          </View>
-          <Text style={styles.info}>A média geral considera todas as notas periódicas já lançadas nas disciplinas do aluno.</Text>
-          <View style={styles.gradeResumo}>
-            {resumoDisciplinas.map((item, index) => (
-              <Pressable key={item.nome} style={[styles.disciplinaResumo, { backgroundColor: item.classificacao.corFundo, borderColor: item.classificacao.corBorda }]} onPress={() => { setDisciplinaSelecionada(index); setAbaAtiva("notas"); }}>
-                <Text style={[styles.disciplinaSigla, { color: item.classificacao.corTexto }]}>{item.sigla}</Text>
-                <Text style={[styles.disciplinaMedia, { color: item.classificacao.corTexto }]}>{mostrarNota(item.media)}</Text>
-                <Text style={[styles.disciplinaStatus, { color: item.classificacao.corTexto }]}>{item.classificacao.titulo}</Text>
-              </Pressable>
-            ))}
+        <View style={styles.cardInicioNovo}>
+          <View style={styles.cardTopoLinhaNovo}>
+            <View>
+              <Text style={styles.tituloSecaoNovo}>Visão geral</Text>
+              <Text style={styles.infoInicioNovo}>
+                A média geral considera todas as notas periódicas já lançadas.
+              </Text>
+            </View>
+
+            <Text style={styles.badgeSerieNovo}>{obterRotuloSerie(filho.serie)}</Text>
           </View>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitulo}>Legenda de desempenho</Text>
-          <Text style={styles.legendaLinha}>9,0 ou mais: Excelente — Parabéns</Text>
-          <Text style={styles.legendaLinha}>8,0 a 8,9: Muito bom — Continue assim</Text>
-          <Text style={styles.legendaLinha}>6,0 a 7,9: Bom — Você pode melhorar</Text>
-          <Text style={styles.legendaLinha}>Abaixo de 6,0: Atenção — Você precisa estudar</Text>
+        <View style={styles.gradeResumoNovo}>
+          {resumoDisciplinas.map((item, index) => (
+            <Pressable
+              key={item.nome}
+              style={[
+                styles.cardDisciplinaNovo,
+                {
+                  backgroundColor: item.classificacao.corFundo,
+                  borderColor: item.classificacao.corBorda,
+                },
+              ]}
+              onPress={() => {
+                setDisciplinaSelecionada(index);
+                setAbaAtiva("notas");
+              }}
+            >
+              <Text
+                style={[
+                  styles.siglaDisciplinaNovo,
+                  { color: item.classificacao.corTexto },
+                ]}
+              >
+                {item.sigla}
+              </Text>
+
+              <Text
+                style={[
+                  styles.mediaDisciplinaNovo,
+                  { color: item.classificacao.corTexto },
+                ]}
+              >
+                {mostrarNota(item.media)}
+              </Text>
+
+              <Text
+                style={[
+                  styles.statusDisciplinaNovo,
+                  { color: item.classificacao.corTexto },
+                ]}
+              >
+                {item.classificacao.titulo}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={styles.cardLegendaNovo}>
+          <Text style={styles.tituloSecaoNovo}>Legenda de desempenho</Text>
+
+          <View style={styles.itemLegendaNovo}>
+            <View style={[styles.barraLegendaNovo, { backgroundColor: "#16a34a" }]} />
+            <View>
+              <Text style={[styles.textoLegendaTituloNovo, { color: "#166534" }]}>
+                9,0 ou mais: Excelente
+              </Text>
+              <Text style={styles.textoLegendaSubNovo}>Parabéns</Text>
+            </View>
+          </View>
+
+          <View style={styles.itemLegendaNovo}>
+            <View style={[styles.barraLegendaNovo, { backgroundColor: "#2563eb" }]} />
+            <View>
+              <Text style={[styles.textoLegendaTituloNovo, { color: "#1d4ed8" }]}>
+                8,0 a 8,9: Muito bom
+              </Text>
+              <Text style={styles.textoLegendaSubNovo}>Continue assim</Text>
+            </View>
+          </View>
+
+          <View style={styles.itemLegendaNovo}>
+            <View style={[styles.barraLegendaNovo, { backgroundColor: "#d97706" }]} />
+            <View>
+              <Text style={[styles.textoLegendaTituloNovo, { color: "#92400e" }]}>
+                6,0 a 7,9: Bom
+              </Text>
+              <Text style={styles.textoLegendaSubNovo}>Você pode melhorar</Text>
+            </View>
+          </View>
+
+          <View style={styles.itemLegendaNovo}>
+            <View style={[styles.barraLegendaNovo, { backgroundColor: "#dc2626" }]} />
+            <View>
+              <Text style={[styles.textoLegendaTituloNovo, { color: "#b91c1c" }]}>
+                Abaixo de 6,0: Atenção
+              </Text>
+              <Text style={styles.textoLegendaSubNovo}>Você precisa estudar</Text>
+            </View>
+          </View>
         </View>
       </>
     );
@@ -1908,6 +1986,93 @@ descricao: {
 
   menuTextoAtivoNovo: {
     color: "#0037b0",
+  },
+    cardInicioNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 2,
+  },
+
+  infoInicioNovo: {
+    marginTop: 6,
+    fontSize: 14,
+    color: "#64748b",
+    lineHeight: 20,
+    maxWidth: 260,
+  },
+
+  gradeResumoNovo: {
+    marginTop: 16,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+
+  cardDisciplinaNovo: {
+    width: "47.8%",
+    minHeight: 132,
+    borderWidth: 1,
+    borderRadius: 22,
+    padding: 14,
+    justifyContent: "space-between",
+    elevation: 2,
+  },
+
+  siglaDisciplinaNovo: {
+    fontSize: 14,
+    fontWeight: "bold",
+    letterSpacing: 0.5,
+  },
+
+  mediaDisciplinaNovo: {
+    fontSize: 36,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+
+  statusDisciplinaNovo: {
+    fontSize: 12,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+
+  cardLegendaNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 2,
+  },
+
+  itemLegendaNovo: {
+    marginTop: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  barraLegendaNovo: {
+    width: 6,
+    height: 44,
+    borderRadius: 999,
+  },
+
+  textoLegendaTituloNovo: {
+    fontSize: 15,
+    fontWeight: "bold",
+  },
+
+  textoLegendaSubNovo: {
+    marginTop: 2,
+    fontSize: 13,
+    color: "#64748b",
+    fontWeight: "600",
   },
   subtitulo: { marginTop: 22, marginBottom: 10, fontSize: 21, fontWeight: "bold", color: "#1f2937" },
   cardAluno: { marginTop: 20, borderRadius: 24, padding: 18, borderWidth: 1 },
