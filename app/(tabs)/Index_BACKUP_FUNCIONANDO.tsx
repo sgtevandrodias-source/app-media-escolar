@@ -529,14 +529,6 @@ export default function HomeScreen() {
   const [chaveAtivacao, setChaveAtivacao] = useState("");
   const [mensagemLicenca, setMensagemLicenca] = useState("");
   const [validandoLicenca, setValidandoLicenca] = useState(false);
-  const [mostrarCompraPix, setMostrarCompraPix] = useState(false);
-const [nomeComprador, setNomeComprador] = useState("");
-const [emailComprador, setEmailComprador] = useState("");
-const [whatsappComprador, setWhatsappComprador] = useState("");
-const [statusCompraPix, setStatusCompraPix] = useState<
-  "inicio" | "preparando" | "aguardando" | "confirmado"
->("inicio");
-const [pixCopiaCola, setPixCopiaCola] = useState("");
 
   useEffect(() => {
     async function carregarLicenca() {
@@ -995,210 +987,57 @@ function importarBackup() {
     }
   }
 
-    function prepararCompraPix() {
-    const nome = nomeComprador.trim();
-    const email = emailComprador.trim();
-
-    if (!nome) {
-      setMensagemLicenca("Informe o nome do comprador.");
-      return;
-    }
-
-    if (!email || !email.includes("@")) {
-      setMensagemLicenca("Informe um e-mail válido para receber a chave.");
-      return;
-    }
-
-    setStatusCompraPix("aguardando");
-    setPixCopiaCola("PIX-AINDA-NAO-CONFIGURADO-MERCADO-PAGO");
-    setMensagemLicenca(
-      "Área de compra preparada. Na próxima etapa, este botão vai gerar um Pix real pelo Mercado Pago."
-    );
-  }
-
   function renderTelaLicenca() {
-  return (
-    <ScrollView contentContainerStyle={styles.containerLicencaNovo}>
-      <View style={styles.barraTopoLicenca} />
+    return (
+      <ScrollView contentContainerStyle={styles.containerLicenca}>
+        <View style={styles.cardLicenca}>
+          <Text style={styles.titulo}>Média CMB</Text>
+          <Text style={styles.descricao}>Ative o app para liberar o uso neste dispositivo.</Text>
 
-      <View style={styles.cardLicencaNovo}>
-        <View style={styles.areaLogoLicenca}>
-          <Image
-            source={require("../../assets/images/Icon-512-cmb.png")}
-            style={styles.logoLicenca}
-          />
-
-          <Text style={styles.tituloLicenca}>Média CMB</Text>
-
-          <Text style={styles.descricaoLicenca}>
-            Acompanhe notas, trimestres e recuperação escolar com clareza.
-          </Text>
-        </View>
-
-        <View style={styles.blocoLicenca}>
-          <Text style={styles.cardTituloLicenca}>Ativar app</Text>
-
-          <Text style={styles.infoLicenca}>
-            Digite sua chave de acesso para liberar o uso neste dispositivo.
-            Cada chave pode liberar até 2 dispositivos.
+          <Text style={styles.cardTitulo}>Chave de acesso</Text>
+          <Text style={styles.info}>
+            Digite a chave fornecida pelo desenvolvedor. Cada chave pode liberar até 2 dispositivos.
           </Text>
 
-          <Text style={styles.labelLicenca}>Chave de acesso</Text>
-
+          <Text style={styles.label}>Chave</Text>
           <TextInput
-            style={styles.inputLicenca}
+            style={styles.input}
             value={chaveAtivacao}
             onChangeText={setChaveAtivacao}
             autoCapitalize="characters"
             autoCorrect={false}
             placeholder="Ex.: MEDIA-CMB-8K2P-91QD"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor="#cbd5e1"
           />
 
           <Pressable
-            style={[
-              styles.botaoAtivarNovo,
-              validandoLicenca && styles.botaoDesabilitado,
-            ]}
+            style={[styles.botaoAtivar, validandoLicenca && styles.botaoDesabilitado]}
             onPress={ativarLicenca}
             disabled={validandoLicenca}
           >
-            <Text style={styles.botaoAtivarTextoNovo}>
-              {validandoLicenca ? "Validando..." : "Ativar app"}
-            </Text>
+            <Text style={styles.botaoAtivarTexto}>{validandoLicenca ? "Validando..." : "Ativar app"}</Text>
           </Pressable>
 
-          {mensagemLicenca ? (
-            <Text style={styles.mensagemLicencaNovo}>{mensagemLicenca}</Text>
+          {mensagemLicenca ? <Text style={styles.mensagemLicenca}>{mensagemLicenca}</Text> : null}
+
+          <View style={styles.caixaDevice}>
+            <Text style={styles.infoCompacta}>ID deste dispositivo:</Text>
+            <Text style={styles.deviceTexto}>{deviceId || "Gerando identificação..."}</Text>
+          </View>
+
+          {__DEV__ ? (
+            <Text style={styles.avisoFormulario}>
+              Teste local: use a chave EVANDRO-TESTE-LOCAL. Essa chave só funciona no modo de desenvolvimento.
+            </Text>
           ) : null}
+
+          <Text style={styles.rodape}>Desenvolvido por EDS</Text>
+          <Text style={styles.rodapeSub}>Este app guarda dados apenas no seu dispositivo.</Text>
         </View>
+      </ScrollView>
+    );
+  }
 
-        <View style={styles.divisorLicenca} />
-
-        <View style={styles.blocoCompraPix}>
-          <Text style={styles.cardTituloLicenca}>Ainda não tem chave?</Text>
-
-          <Text style={styles.infoLicenca}>
-            Em breve você poderá comprar a licença por Pix. Após a confirmação
-            do pagamento, a chave será liberada automaticamente no app e enviada
-            por e-mail.
-          </Text>
-
-          {!mostrarCompraPix ? (
-            <Pressable
-              style={styles.botaoComprarPix}
-              onPress={() => {
-                setMostrarCompraPix(true);
-                setMensagemLicenca("");
-              }}
-            >
-              <Text style={styles.botaoComprarPixTexto}>
-                Comprar licença por Pix
-              </Text>
-            </Pressable>
-          ) : (
-            <View style={styles.formCompraPix}>
-              <Text style={styles.labelLicenca}>Nome do comprador</Text>
-              <TextInput
-                style={styles.inputLicenca}
-                value={nomeComprador}
-                onChangeText={setNomeComprador}
-                placeholder="Ex.: Evandro Dias"
-                placeholderTextColor="#94a3b8"
-              />
-
-              <Text style={styles.labelLicenca}>E-mail para receber a chave</Text>
-              <TextInput
-                style={styles.inputLicenca}
-                value={emailComprador}
-                onChangeText={setEmailComprador}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                placeholder="Ex.: email@exemplo.com"
-                placeholderTextColor="#94a3b8"
-              />
-
-              <Text style={styles.labelLicenca}>WhatsApp opcional</Text>
-              <TextInput
-                style={styles.inputLicenca}
-                value={whatsappComprador}
-                onChangeText={setWhatsappComprador}
-                keyboardType="phone-pad"
-                placeholder="Ex.: (61) 99999-9999"
-                placeholderTextColor="#94a3b8"
-              />
-
-              <Pressable
-                style={styles.botaoGerarPix}
-                onPress={prepararCompraPix}
-              >
-                <Text style={styles.botaoGerarPixTexto}>
-                  Gerar Pix de R$ 14,99
-                </Text>
-              </Pressable>
-
-              {statusCompraPix === "aguardando" ? (
-                <View style={styles.caixaPixPreparado}>
-                  <Text style={styles.pixTitulo}>Pix preparado para integração</Text>
-
-                  <Text style={styles.infoLicenca}>
-                    Quando conectarmos o Mercado Pago, aqui aparecerão o QR Code
-                    Pix e o código Pix copia e cola.
-                  </Text>
-
-                  <Text style={styles.labelLicenca}>Pix copia e cola</Text>
-
-                  <View style={styles.caixaCodigoPix}>
-                    <Text style={styles.codigoPixTexto}>{pixCopiaCola}</Text>
-                  </View>
-
-                  <Text style={styles.avisoPix}>
-                    Esta tela ainda não realiza cobrança real.
-                  </Text>
-                </View>
-              ) : null}
-
-              <Pressable
-                style={styles.botaoVoltarChave}
-                onPress={() => {
-                  setMostrarCompraPix(false);
-                  setStatusCompraPix("inicio");
-                  setPixCopiaCola("");
-                  setMensagemLicenca("");
-                }}
-              >
-                <Text style={styles.botaoVoltarChaveTexto}>
-                  Já tenho uma chave
-                </Text>
-              </Pressable>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.caixaDeviceNovo}>
-          <Text style={styles.deviceLabelNovo}>ID deste dispositivo</Text>
-          <Text style={styles.deviceTextoNovo}>
-            {deviceId || "Gerando identificação..."}
-          </Text>
-        </View>
-
-        {__DEV__ ? (
-          <Text style={styles.avisoDevLicenca}>
-            Teste local: use a chave EVANDRO-TESTE-LOCAL.
-          </Text>
-        ) : null}
-
-        <View style={styles.rodapeLicencaNovo}>
-          <Text style={styles.rodape}>Desenvolvido por EDS e Dupont</Text>
-          <Text style={styles.rodapeSub}>
-            Este app guarda dados apenas no seu dispositivo.
-          </Text>
-        </View>
-      </View>
-    </ScrollView>
-  );
-}
   function renderCabecalho() {
     return (
       <>
@@ -1639,259 +1478,6 @@ descricao: {
     justifyContent: "space-between",
     gap: 14,
   },
-
-  containerLicencaNovo: {
-  padding: 20,
-  paddingTop: 54,
-  paddingBottom: 70,
-  backgroundColor: "#f7f9fb",
-  flexGrow: 1,
-  justifyContent: "center",
-},
-
-barraTopoLicenca: {
-  position: "absolute",
-  top: 0,
-  left: 0,
-  right: 0,
-  height: 5,
-  backgroundColor: "#1d4ed8",
-  opacity: 0.18,
-},
-
-cardLicencaNovo: {
-  width: "100%",
-  maxWidth: 460,
-  alignSelf: "center",
-  backgroundColor: "#ffffff",
-  borderRadius: 28,
-  padding: 22,
-  borderWidth: 1,
-  borderColor: "#e2e8f0",
-  elevation: 4,
-},
-
-areaLogoLicenca: {
-  alignItems: "center",
-  marginBottom: 26,
-},
-
-logoLicenca: {
-  width: 74,
-  height: 74,
-  borderRadius: 20,
-  marginBottom: 12,
-},
-
-tituloLicenca: {
-  fontSize: 36,
-  fontWeight: "bold",
-  color: "#0037b0",
-  textAlign: "center",
-},
-
-descricaoLicenca: {
-  marginTop: 8,
-  fontSize: 15,
-  color: "#475569",
-  textAlign: "center",
-  lineHeight: 22,
-  maxWidth: 320,
-},
-
-blocoLicenca: {
-  marginTop: 4,
-},
-
-cardTituloLicenca: {
-  fontSize: 22,
-  fontWeight: "bold",
-  color: "#111827",
-  marginBottom: 8,
-},
-
-infoLicenca: {
-  fontSize: 15,
-  color: "#475569",
-  lineHeight: 22,
-  marginBottom: 14,
-},
-
-labelLicenca: {
-  marginTop: 10,
-  marginBottom: 6,
-  fontSize: 12,
-  fontWeight: "bold",
-  color: "#64748b",
-  textTransform: "uppercase",
-  letterSpacing: 0.7,
-},
-
-inputLicenca: {
-  borderWidth: 1,
-  borderColor: "#cbd5e1",
-  borderRadius: 16,
-  paddingVertical: 14,
-  paddingHorizontal: 14,
-  fontSize: 17,
-  backgroundColor: "#ffffff",
-  color: "#111827",
-},
-
-botaoAtivarNovo: {
-  marginTop: 18,
-  borderRadius: 18,
-  paddingVertical: 16,
-  alignItems: "center",
-  backgroundColor: "#0037b0",
-  elevation: 3,
-},
-
-botaoAtivarTextoNovo: {
-  color: "#ffffff",
-  fontWeight: "bold",
-  fontSize: 18,
-},
-
-mensagemLicencaNovo: {
-  marginTop: 14,
-  fontSize: 15,
-  color: "#1d4ed8",
-  fontWeight: "bold",
-  lineHeight: 21,
-},
-
-divisorLicenca: {
-  height: 1,
-  backgroundColor: "#e2e8f0",
-  marginVertical: 22,
-},
-
-blocoCompraPix: {
-  backgroundColor: "#f8fafc",
-  borderRadius: 22,
-  padding: 16,
-  borderWidth: 1,
-  borderColor: "#dbeafe",
-},
-
-botaoComprarPix: {
-  marginTop: 4,
-  borderRadius: 16,
-  paddingVertical: 15,
-  alignItems: "center",
-  backgroundColor: "#006c49",
-},
-
-botaoComprarPixTexto: {
-  color: "#ffffff",
-  fontWeight: "bold",
-  fontSize: 16,
-},
-
-formCompraPix: {
-  marginTop: 4,
-},
-
-botaoGerarPix: {
-  marginTop: 16,
-  borderRadius: 16,
-  paddingVertical: 15,
-  alignItems: "center",
-  backgroundColor: "#006c49",
-},
-
-botaoGerarPixTexto: {
-  color: "#ffffff",
-  fontWeight: "bold",
-  fontSize: 16,
-},
-
-caixaPixPreparado: {
-  marginTop: 16,
-  borderRadius: 18,
-  padding: 14,
-  backgroundColor: "#ecfdf5",
-  borderWidth: 1,
-  borderColor: "#bbf7d0",
-},
-
-pixTitulo: {
-  fontSize: 17,
-  fontWeight: "bold",
-  color: "#166534",
-  marginBottom: 6,
-},
-
-caixaCodigoPix: {
-  marginTop: 8,
-  padding: 12,
-  borderRadius: 14,
-  backgroundColor: "#ffffff",
-  borderWidth: 1,
-  borderColor: "#bbf7d0",
-},
-
-codigoPixTexto: {
-  fontSize: 12,
-  color: "#166534",
-  fontWeight: "bold",
-},
-
-avisoPix: {
-  marginTop: 10,
-  fontSize: 12,
-  color: "#64748b",
-  fontWeight: "600",
-},
-
-botaoVoltarChave: {
-  marginTop: 14,
-  alignItems: "center",
-  paddingVertical: 10,
-},
-
-botaoVoltarChaveTexto: {
-  color: "#1d4ed8",
-  fontWeight: "bold",
-  fontSize: 15,
-},
-
-caixaDeviceNovo: {
-  marginTop: 20,
-  borderRadius: 18,
-  padding: 14,
-  backgroundColor: "#f8fafc",
-  borderWidth: 1,
-  borderColor: "#e2e8f0",
-},
-
-deviceLabelNovo: {
-  fontSize: 12,
-  color: "#64748b",
-  fontWeight: "bold",
-  textTransform: "uppercase",
-  letterSpacing: 0.7,
-},
-
-deviceTextoNovo: {
-  marginTop: 6,
-  color: "#475569",
-  fontSize: 11,
-  fontWeight: "700",
-},
-
-avisoDevLicenca: {
-  marginTop: 14,
-  fontSize: 13,
-  color: "#64748b",
-  lineHeight: 18,
-  textAlign: "center",
-},
-
-rodapeLicencaNovo: {
-  marginTop: 12,
-},
   colunaNotaGeral: { flexShrink: 0 },
   colunaStatusGeral: { flex: 1, alignItems: "flex-end" },
   rotuloMediaGeral: { fontSize: 13, fontWeight: "bold", color: "#64748b", marginBottom: 2 },
