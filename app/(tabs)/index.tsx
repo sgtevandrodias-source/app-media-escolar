@@ -1889,74 +1889,259 @@ function importarBackup() {
     );
   }
 
-  function renderAlunos() {
+    function renderAlunos() {
     return (
       <>
-        <View style={styles.card}>
-          <Text style={styles.cardTitulo}>Alunos</Text>
-          <Text style={styles.info}>Selecione, adicione ou edite os alunos cadastrados. Cada aluno possui suas próprias notas e disciplinas.</Text>
-          {renderSeletorAlunoCompacto()}
-          <View style={styles.linhaAcoes}>
-            <Pressable style={styles.botaoSecundario} onPress={abrirNovoFilho}><Text style={styles.botaoSecundarioTexto}>Adicionar aluno</Text></Pressable>
-            <Pressable style={styles.botaoSecundario} onPress={abrirEditarFilho}><Text style={styles.botaoSecundarioTexto}>Editar aluno</Text></Pressable>
-            <Pressable style={styles.botaoSecundario} onPress={alterarFotoAluno}><Text style={styles.botaoSecundarioTexto}>Alterar foto</Text></Pressable>
-            {filho.fotoUri ? (
-              <Pressable style={styles.botaoCancelar} onPress={removerFotoAluno}><Text style={styles.botaoCancelarTexto}>Remover foto</Text></Pressable>
-            ) : null}
+        <View style={styles.cardAlunosTopoNovo}>
+          <View>
+            <Text style={styles.labelHeroNovo}>Gerenciamento</Text>
+            <Text style={styles.tituloAlunosNovo}>Meus Alunos</Text>
+            <Text style={styles.infoAlunosNovo}>
+              {filhos.length}/{LIMITE_FILHOS} alunos cadastrados
+            </Text>
           </View>
-          <Text style={styles.info}>Alunos cadastrados: {filhos.length}/{LIMITE_FILHOS}</Text>
 
-<View style={styles.caixaBackup}>
-  <Text style={styles.cardTitulo}>Backup dos dados</Text>
-  <Text style={styles.info}>
-    Exporte um arquivo para guardar ou transferir as notas para outro aparelho.
-    O Média CMB não envia nem armazena suas notas em servidor.
-  </Text>
+          <View style={styles.barraLimiteAlunosNovo}>
+            <View
+              style={[
+                styles.barraLimitePreenchidaNovo,
+                { width: `${Math.min((filhos.length / LIMITE_FILHOS) * 100, 100)}%` },
+              ]}
+            />
+          </View>
 
-  <View style={styles.linhaAcoes}>
-    <Pressable style={styles.botaoSalvar} onPress={exportarBackup}>
-      <Text style={styles.botaoSalvarTexto}>Exportar backup</Text>
-    </Pressable>
-
-    <Pressable style={styles.botaoSecundario} onPress={importarBackup}>
-      <Text style={styles.botaoSecundarioTexto}>Importar backup</Text>
-    </Pressable>
-  </View>
-</View>
-
-{mensagem ? <Text style={styles.mensagem}>{mensagem}</Text> : null}
+          <Pressable style={styles.botaoAdicionarAlunoNovo} onPress={abrirNovoFilho}>
+            <Text style={styles.botaoAdicionarAlunoTextoNovo}>＋ Adicionar aluno</Text>
+          </Pressable>
         </View>
 
-        {modoFormulario && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitulo}>{modoFormulario === "novo" ? "Adicionar aluno" : "Editar aluno"}</Text>
-            <Text style={styles.label}>Nome do aluno</Text>
-            <TextInput style={styles.input} value={nomeFormulario} onChangeText={setNomeFormulario} placeholder="Ex.: Pedro Henrique" placeholderTextColor="#e2e8f0" />
+        <View style={styles.listaAlunosCardsNovo}>
+          {filhos.map((item, index) => {
+            const dadosAlunoAno = obterDadosAnoLetivo(item, anoLetivoSelecionado);
+            const alunoVisual: Filho = {
+              ...item,
+              serie: dadosAlunoAno.serie,
+              turma: dadosAlunoAno.turma,
+              disciplinas: dadosAlunoAno.disciplinas,
+            };
 
-            <Text style={styles.label}>Série</Text>
+            const mediaAluno = calcularMediaGeralAluno(alunoVisual);
+            const classificacaoAluno = obterClassificacao(mediaAluno);
+            const selecionado = filhoSelecionado === index;
+
+            return (
+              <Pressable
+                key={item.id}
+                style={[
+                  styles.cardAlunoListaNovo,
+                  selecionado && styles.cardAlunoListaSelecionadoNovo,
+                ]}
+                onPress={() => {
+                  setFilhoSelecionado(index);
+                  setDisciplinaSelecionada(0);
+                  setTrimestreSelecionado("t1");
+                  setMensagem("");
+                }}
+              >
+                <View style={styles.cardAlunoListaTopoNovo}>
+                  <View style={styles.areaFotoAlunoListaNovo}>
+                    <View style={styles.fotoAlunoListaNovo}>
+                      {item.fotoUri ? (
+                        <Image source={{ uri: item.fotoUri }} style={styles.fotoAlunoImagemListaNovo} />
+                      ) : (
+                        <Text style={styles.fotoAlunoIniciaisNovo}>
+                          {obterIniciais(item.nome)}
+                        </Text>
+                      )}
+                    </View>
+
+                    {selecionado ? (
+                      <Pressable
+                        style={styles.botaoMiniFotoNovo}
+                        onPress={alterarFotoAluno}
+                      >
+                        <Text style={styles.botaoMiniFotoTextoNovo}>✎</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+
+                  <View style={styles.areaMediaAlunoListaNovo}>
+                    <Text
+                      style={[
+                        styles.badgeStatusAlunoNovo,
+                        {
+                          backgroundColor: classificacaoAluno.corFundo,
+                          color: classificacaoAluno.corTexto,
+                        },
+                      ]}
+                    >
+                      {classificacaoAluno.titulo}
+                    </Text>
+
+                    <Text
+                      style={[
+                        styles.mediaAlunoListaNovo,
+                        { color: classificacaoAluno.corTexto },
+                      ]}
+                    >
+                      {mostrarNota(mediaAluno)}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.cardAlunoListaCorpoNovo}>
+                  <Text style={styles.nomeAlunoListaNovo}>{item.nome}</Text>
+                  <Text style={styles.dadosAlunoListaNovo}>
+                    {obterRotuloSerie(alunoVisual.serie)} • Turma {alunoVisual.turma}
+                  </Text>
+                </View>
+
+                <View style={styles.linhaAlunoListaNovo} />
+
+                <View style={styles.acoesAlunoListaNovo}>
+                  <Pressable
+                    style={styles.botaoAcaoAlunoNovo}
+                    onPress={() => {
+                      setFilhoSelecionado(index);
+                      setDisciplinaSelecionada(0);
+                      setTrimestreSelecionado("t1");
+                      setMensagem("");
+                      setModoFormulario("editar");
+                      setNomeFormulario(item.nome);
+                      setSerieFormulario(alunoVisual.serie);
+                      setTurmaFormulario(alunoVisual.turma);
+                    }}
+                  >
+                    <Text style={styles.botaoAcaoAlunoTextoNovo}>Editar</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.botaoAcaoAlunoNovo}
+                    onPress={() => {
+                      setFilhoSelecionado(index);
+                      setAbaAtiva("inicio");
+                    }}
+                  >
+                    <Text style={styles.botaoAcaoAlunoTextoSecNovo}>Ver notas</Text>
+                  </Pressable>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {filhos.length < LIMITE_FILHOS ? (
+          <Pressable style={styles.cardVagaAlunoNovo} onPress={abrirNovoFilho}>
+            <Text style={styles.iconeVagaAlunoNovo}>＋</Text>
+            <Text style={styles.tituloVagaAlunoNovo}>Vaga disponível</Text>
+            <Text style={styles.infoVagaAlunoNovo}>Limite: 5 alunos</Text>
+          </Pressable>
+        ) : null}
+
+        <View style={styles.cardBackupNovo}>
+          <Text style={styles.labelHeroNovo}>Dados e segurança</Text>
+          <Text style={styles.tituloBackupNovo}>Backup dos dados</Text>
+
+          <Text style={styles.infoBackupNovo}>
+            Exporte um arquivo para guardar ou transferir as notas para outro aparelho.
+            O Média CMB não envia nem armazena suas notas em servidor.
+          </Text>
+
+          <View style={styles.botoesBackupNovo}>
+            <Pressable style={styles.botaoExportarBackupNovo} onPress={exportarBackup}>
+              <Text style={styles.botaoExportarBackupTextoNovo}>Exportar backup</Text>
+            </Pressable>
+
+            <Pressable style={styles.botaoImportarBackupNovo} onPress={importarBackup}>
+              <Text style={styles.botaoImportarBackupTextoNovo}>Importar backup</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {mensagem ? <Text style={styles.mensagem}>{mensagem}</Text> : null}
+
+        {modoFormulario && (
+          <View style={styles.cardFormularioAlunoNovo}>
+            <Text style={styles.tituloFormularioAlunoNovo}>
+              {modoFormulario === "novo" ? "Adicionar aluno" : "Editar aluno"}
+            </Text>
+
+            <Text style={styles.labelSelecaoNovo}>Nome do aluno</Text>
+            <TextInput
+              style={styles.inputLicenca}
+              value={nomeFormulario}
+              onChangeText={setNomeFormulario}
+              placeholder="Ex.: Pedro Henrique"
+              placeholderTextColor="#94a3b8"
+            />
+
+            <Text style={styles.labelSelecaoNovo}>Série</Text>
             <View style={styles.listaBotoes}>
               {SERIES.map((serie) => (
-                <Pressable key={serie.id} style={[styles.botao, serieFormulario === serie.id && styles.botaoAtivo]} onPress={() => selecionarSerie(serie.id)}>
-                  <Text style={[styles.botaoTexto, serieFormulario === serie.id && styles.botaoTextoAtivo]}>{serie.rotulo}</Text>
+                <Pressable
+                  key={serie.id}
+                  style={[
+                    styles.chipDisciplinaNovo,
+                    serieFormulario === serie.id && styles.chipDisciplinaAtivoNovo,
+                  ]}
+                  onPress={() => selecionarSerie(serie.id)}
+                >
+                  <Text
+                    style={[
+                      styles.chipDisciplinaTextoNovo,
+                      serieFormulario === serie.id && styles.chipDisciplinaTextoAtivoNovo,
+                    ]}
+                  >
+                    {serie.rotulo}
+                  </Text>
                 </Pressable>
               ))}
             </View>
 
-            <Text style={styles.label}>Turma</Text>
+            <Text style={styles.labelSelecaoNovo}>Turma</Text>
             <View style={styles.listaBotoes}>
               {gerarTurmas(serieFormulario).map((turma) => (
-                <Pressable key={turma} style={[styles.botaoTurma, turmaFormulario === turma && styles.botaoAtivo]} onPress={() => setTurmaFormulario(turma)}>
-                  <Text style={[styles.botaoTexto, turmaFormulario === turma && styles.botaoTextoAtivo]}>{turma}</Text>
+                <Pressable
+                  key={turma}
+                  style={[
+                    styles.chipTurmaAlunoNovo,
+                    turmaFormulario === turma && styles.chipDisciplinaAtivoNovo,
+                  ]}
+                  onPress={() => setTurmaFormulario(turma)}
+                >
+                  <Text
+                    style={[
+                      styles.chipDisciplinaTextoNovo,
+                      turmaFormulario === turma && styles.chipDisciplinaTextoAtivoNovo,
+                    ]}
+                  >
+                    {turma}
+                  </Text>
                 </Pressable>
               ))}
             </View>
 
-            <Text style={styles.avisoFormulario}>Ao mudar a série de um aluno já cadastrado, a lista de disciplinas será ajustada para a nova série.</Text>
-
-            <View style={styles.linhaAcoes}>
-              <Pressable style={styles.botaoSalvar} onPress={salvarFilho}><Text style={styles.botaoSalvarTexto}>Salvar aluno</Text></Pressable>
-              <Pressable style={styles.botaoCancelar} onPress={cancelarFormulario}><Text style={styles.botaoCancelarTexto}>Cancelar</Text></Pressable>
+            <View style={styles.caixaAvisoPlanejamentoNovo}>
+              <Text style={styles.avisoPlanejamentoTextoNovo}>
+                Ao mudar a série de um aluno já cadastrado, a lista de disciplinas será ajustada para a nova série no ano letivo selecionado.
+              </Text>
             </View>
+
+            <View style={styles.botoesFormularioAlunoNovo}>
+              <Pressable style={styles.botaoSalvarAlunoNovo} onPress={salvarFilho}>
+                <Text style={styles.botaoSalvarAlunoTextoNovo}>Salvar aluno</Text>
+              </Pressable>
+
+              <Pressable style={styles.botaoCancelarAlunoNovo} onPress={cancelarFormulario}>
+                <Text style={styles.botaoCancelarAlunoTextoNovo}>Cancelar</Text>
+              </Pressable>
+            </View>
+
+            {filho.fotoUri ? (
+              <Pressable style={styles.botaoRemoverFotoNovo} onPress={removerFotoAluno}>
+                <Text style={styles.botaoRemoverFotoTextoNovo}>Remover foto do aluno selecionado</Text>
+              </Pressable>
+            ) : null}
           </View>
         )}
       </>
@@ -2911,6 +3096,357 @@ descricao: {
     color: "#1d4ed8",
     lineHeight: 19,
     fontWeight: "600",
+  },
+    cardAlunosTopoNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 2,
+  },
+
+  tituloAlunosNovo: {
+    marginTop: 6,
+    fontSize: 26,
+    color: "#111827",
+    fontWeight: "bold",
+  },
+
+  infoAlunosNovo: {
+    marginTop: 4,
+    fontSize: 13,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+
+  barraLimiteAlunosNovo: {
+    marginTop: 14,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: "#e2e8f0",
+    overflow: "hidden",
+  },
+
+  barraLimitePreenchidaNovo: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: "#0037b0",
+  },
+
+  botaoAdicionarAlunoNovo: {
+    marginTop: 18,
+    backgroundColor: "#0037b0",
+    borderRadius: 16,
+    paddingVertical: 15,
+    alignItems: "center",
+  },
+
+  botaoAdicionarAlunoTextoNovo: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+
+  listaAlunosCardsNovo: {
+    marginTop: 18,
+    gap: 14,
+  },
+
+  cardAlunoListaNovo: {
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 2,
+  },
+
+  cardAlunoListaSelecionadoNovo: {
+    borderColor: "#0037b0",
+    backgroundColor: "#f8fbff",
+  },
+
+  cardAlunoListaTopoNovo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+
+  areaFotoAlunoListaNovo: {
+    position: "relative",
+  },
+
+  fotoAlunoListaNovo: {
+    width: 82,
+    height: 82,
+    borderRadius: 22,
+    backgroundColor: "#dbeafe",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+
+  fotoAlunoImagemListaNovo: {
+    width: "100%",
+    height: "100%",
+  },
+
+  fotoAlunoIniciaisNovo: {
+    color: "#0037b0",
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+
+  botaoMiniFotoNovo: {
+    position: "absolute",
+    right: -6,
+    bottom: -6,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 3,
+  },
+
+  botaoMiniFotoTextoNovo: {
+    color: "#0037b0",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+
+  areaMediaAlunoListaNovo: {
+    alignItems: "flex-end",
+  },
+
+  badgeStatusAlunoNovo: {
+    overflow: "hidden",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    fontSize: 11,
+    fontWeight: "bold",
+  },
+
+  mediaAlunoListaNovo: {
+    marginTop: 6,
+    fontSize: 42,
+    fontWeight: "bold",
+  },
+
+  cardAlunoListaCorpoNovo: {
+    marginTop: 14,
+  },
+
+  nomeAlunoListaNovo: {
+    fontSize: 21,
+    color: "#111827",
+    fontWeight: "bold",
+  },
+
+  dadosAlunoListaNovo: {
+    marginTop: 4,
+    fontSize: 13,
+    color: "#475569",
+    fontWeight: "600",
+  },
+
+  linhaAlunoListaNovo: {
+    height: 1,
+    backgroundColor: "#e2e8f0",
+    marginVertical: 14,
+  },
+
+  acoesAlunoListaNovo: {
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  botaoAcaoAlunoNovo: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 14,
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+  },
+
+  botaoAcaoAlunoTextoNovo: {
+    color: "#0037b0",
+    fontWeight: "bold",
+  },
+
+  botaoAcaoAlunoTextoSecNovo: {
+    color: "#475569",
+    fontWeight: "bold",
+  },
+
+  cardVagaAlunoNovo: {
+    marginTop: 14,
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderColor: "#cbd5e1",
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+  },
+
+  iconeVagaAlunoNovo: {
+    fontSize: 30,
+    color: "#64748b",
+    fontWeight: "bold",
+  },
+
+  tituloVagaAlunoNovo: {
+    marginTop: 4,
+    fontSize: 17,
+    color: "#475569",
+    fontWeight: "bold",
+  },
+
+  infoVagaAlunoNovo: {
+    marginTop: 2,
+    fontSize: 13,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+
+  cardBackupNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 2,
+  },
+
+  tituloBackupNovo: {
+    marginTop: 6,
+    fontSize: 22,
+    color: "#0037b0",
+    fontWeight: "bold",
+  },
+
+  infoBackupNovo: {
+    marginTop: 10,
+    fontSize: 14,
+    color: "#475569",
+    lineHeight: 20,
+    fontWeight: "600",
+  },
+
+  botoesBackupNovo: {
+    marginTop: 18,
+    gap: 10,
+  },
+
+  botaoExportarBackupNovo: {
+    backgroundColor: "#0037b0",
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+
+  botaoExportarBackupTextoNovo: {
+    color: "#ffffff",
+    fontWeight: "bold",
+    fontSize: 15,
+  },
+
+  botaoImportarBackupNovo: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+  },
+
+  botaoImportarBackupTextoNovo: {
+    color: "#0037b0",
+    fontWeight: "bold",
+    fontSize: 15,
+  },
+
+  cardFormularioAlunoNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 3,
+  },
+
+  tituloFormularioAlunoNovo: {
+    fontSize: 23,
+    color: "#111827",
+    fontWeight: "bold",
+    marginBottom: 16,
+  },
+
+  chipTurmaAlunoNovo: {
+    paddingVertical: 10,
+    paddingHorizontal: 13,
+    borderRadius: 999,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+  },
+
+  botoesFormularioAlunoNovo: {
+    marginTop: 18,
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  botaoSalvarAlunoNovo: {
+    flex: 1,
+    backgroundColor: "#16a34a",
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+
+  botaoSalvarAlunoTextoNovo: {
+    color: "#ffffff",
+    fontWeight: "bold",
+    fontSize: 15,
+  },
+
+  botaoCancelarAlunoNovo: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+  },
+
+  botaoCancelarAlunoTextoNovo: {
+    color: "#475569",
+    fontWeight: "bold",
+    fontSize: 15,
+  },
+
+  botaoRemoverFotoNovo: {
+    marginTop: 14,
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+
+  botaoRemoverFotoTextoNovo: {
+    color: "#dc2626",
+    fontWeight: "bold",
+    fontSize: 14,
   },
   subtitulo: { marginTop: 22, marginBottom: 10, fontSize: 21, fontWeight: "bold", color: "#1f2937" },
   cardAluno: { marginTop: 20, borderRadius: 24, padding: 18, borderWidth: 1 },
