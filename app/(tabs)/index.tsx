@@ -1199,65 +1199,81 @@ function importarBackup() {
     </ScrollView>
   );
 }
-  function renderCabecalho() {
+    function renderCabecalho() {
     return (
       <>
-        <View style={styles.areaLogoTitulo}>
- <Image
-  source={require("../../assets/images/Icon-512-cmb.png")}
-  style={styles.logoApp}
-/>
+        <View style={styles.topoAppNovo}>
+          <View style={styles.topoMarcaNovo}>
+            <Image
+              source={require("../../assets/images/Icon-512-cmb.png")}
+              style={styles.topoLogoNovo}
+            />
 
-  <Text style={styles.titulo}>Média CMB</Text>
-
-  <Text style={styles.descricao}>
-    Acompanhe notas, trimestres e recuperação com clareza.
-  </Text>
-</View>
-
-        <View style={[styles.cardAluno, { backgroundColor: classificacaoGeral.corFundo, borderColor: classificacaoGeral.corBorda }]}>
-          <View style={styles.areaPerfil}>
-            <View style={[styles.avatar, { backgroundColor: classificacaoGeral.corAvatar }]}>
-              {filho.fotoUri ? (
-                <Image source={{ uri: filho.fotoUri }} style={styles.avatarImagem} />
-              ) : (
-                <Text style={styles.avatarTexto}>{obterIniciais(filho.nome)}</Text>
-              )}
-            </View>
-            <View style={styles.areaDadosAluno}>
-              <Text style={styles.alunoNome}>{filho.nome}</Text>
-              <Text style={styles.infoCompacta}>{obterRotuloSerie(filho.serie)} • Turma {filho.turma}</Text>
+            <View>
+              <Text style={styles.topoTituloNovo}>Média CMB</Text>
+              <Text style={styles.topoSubtituloNovo}>Notas e recuperação escolar</Text>
             </View>
           </View>
 
-          <View style={[styles.blocoMediaGeral, { borderColor: classificacaoGeral.corBorda }]}>
-            <View style={styles.colunaNotaGeral}>
-              <Text style={styles.rotuloMediaGeral}>Média geral</Text>
-              <Text style={[styles.mediaGeral, { color: classificacaoGeral.corTexto }]}>
+          <Pressable style={styles.botaoConfigNovo} onPress={() => setAbaAtiva("alunos")}>
+            <Text style={styles.botaoConfigTextoNovo}>⚙</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.cardHeroAlunoNovo}>
+          <View style={styles.areaPerfilHeroNovo}>
+            <View style={[styles.avatarHeroNovo, { backgroundColor: classificacaoGeral.corAvatar }]}>
+              {filho.fotoUri ? (
+                <Image source={{ uri: filho.fotoUri }} style={styles.avatarImagemHeroNovo} />
+              ) : (
+                <Text style={styles.avatarTextoHeroNovo}>{obterIniciais(filho.nome)}</Text>
+              )}
+            </View>
+
+            <View style={styles.infoAlunoHeroNovo}>
+              <Text style={styles.labelHeroNovo}>Estudante</Text>
+              <Text style={styles.nomeAlunoHeroNovo}>{filho.nome}</Text>
+              <Text style={styles.dadosAlunoHeroNovo}>
+                {obterRotuloSerie(filho.serie)} • Turma {filho.turma}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.linhaHeroNovo} />
+
+          <View style={styles.areaMediaHeroNovo}>
+            <View>
+              <Text style={styles.labelHeroNovo}>Média geral</Text>
+              <Text style={[styles.mediaHeroNovo, { color: classificacaoGeral.corTexto }]}>
                 {mostrarNota(mediaGeralAluno)}
               </Text>
             </View>
 
-            <View style={styles.colunaStatusGeral}>
-              <Text style={[styles.statusTitulo, { color: classificacaoGeral.corTexto }]}>
+            <View style={styles.statusHeroNovo}>
+              <Text style={[styles.statusTituloHeroNovo, { color: classificacaoGeral.corTexto }]}>
                 {classificacaoGeral.titulo}
               </Text>
-              <Text style={[styles.alertaMedia, { color: classificacaoGeral.corTexto }]}>
+              <Text style={[styles.statusMensagemHeroNovo, { color: classificacaoGeral.corTexto }]}>
                 {classificacaoGeral.mensagem}
               </Text>
             </View>
           </View>
         </View>
-      
-        
-                <View style={styles.cardAnoLetivo}>
-          <Text style={styles.labelAnoLetivo}>Ano letivo</Text>
 
-          <View style={styles.listaBotoes}>
+        <View style={styles.cardAnoLetivoNovo}>
+          <View style={styles.cardTopoLinhaNovo}>
+            <Text style={styles.tituloSecaoNovo}>Ano letivo</Text>
+            <Text style={styles.badgeSerieNovo}>{obterRotuloSerie(filho.serie)}</Text>
+          </View>
+
+          <View style={styles.listaAnosNovo}>
             {obterAnosDisponiveis().map((ano) => (
               <Pressable
                 key={ano}
-                style={[styles.botaoAno, anoLetivoSelecionado === ano && styles.botaoAtivo]}
+                style={[
+                  styles.botaoAnoNovo,
+                  anoLetivoSelecionado === ano && styles.botaoAnoAtivoNovo,
+                ]}
                 onPress={() => {
                   setAnoLetivoSelecionado(ano);
                   setDisciplinaSelecionada(0);
@@ -1265,26 +1281,44 @@ function importarBackup() {
                   setMensagem("");
                 }}
               >
-                <Text style={[styles.botaoTexto, anoLetivoSelecionado === ano && styles.botaoTextoAtivo]}>
+                <Text
+                  style={[
+                    styles.botaoAnoTextoNovo,
+                    anoLetivoSelecionado === ano && styles.botaoAnoTextoAtivoNovo,
+                  ]}
+                >
                   {ano}
                 </Text>
               </Pressable>
             ))}
           </View>
 
-          <Text style={styles.infoCompacta}>
+          <Text style={styles.infoAnoLetivoNovo}>
             As notas são salvas separadamente para cada ano letivo.
           </Text>
         </View>
 
-        <View style={styles.menuPrincipal}>
-          {([["inicio", "Início"], ["notas", "Notas"], ["planejamento", "Planejamento"], ["alunos", "Alunos"]] as [AbaApp, string][]).map(([aba, rotulo]) => (
+        <View style={styles.menuPrincipalNovo}>
+          {([
+            ["inicio", "Início"],
+            ["notas", "Notas"],
+            ["planejamento", "Planejamento"],
+            ["alunos", "Alunos"],
+          ] as [AbaApp, string][]).map(([aba, rotulo]) => (
             <Pressable
               key={aba}
-              style={[styles.menuBotao, abaAtiva === aba && styles.menuBotaoAtivo]}
+              style={[
+                styles.menuBotaoNovo,
+                abaAtiva === aba && styles.menuBotaoAtivoNovo,
+              ]}
               onPress={() => setAbaAtiva(aba)}
             >
-              <Text style={[styles.menuTexto, abaAtiva === aba && styles.menuTextoAtivo]}>
+              <Text
+                style={[
+                  styles.menuTextoNovo,
+                  abaAtiva === aba && styles.menuTextoAtivoNovo,
+                ]}
+              >
                 {rotulo}
               </Text>
             </Pressable>
@@ -1622,6 +1656,259 @@ descricao: {
   lineHeight: 22,
   textAlign: "center",
 },
+
+  topoAppNovo: {
+    marginBottom: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  topoMarcaNovo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+
+  topoLogoNovo: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+  },
+
+  topoTituloNovo: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#0037b0",
+  },
+
+  topoSubtituloNovo: {
+    marginTop: 1,
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+
+  botaoConfigNovo: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  botaoConfigTextoNovo: {
+    fontSize: 18,
+    color: "#0037b0",
+  },
+
+  cardHeroAlunoNovo: {
+    backgroundColor: "#ecfdf5",
+    borderRadius: 26,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    elevation: 3,
+  },
+
+  areaPerfilHeroNovo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+
+  avatarHeroNovo: {
+    width: 76,
+    height: 76,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    borderWidth: 3,
+    borderColor: "#ffffff",
+  },
+
+  avatarImagemHeroNovo: {
+    width: "100%",
+    height: "100%",
+  },
+
+  avatarTextoHeroNovo: {
+    color: "#ffffff",
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+
+  infoAlunoHeroNovo: {
+    flex: 1,
+  },
+
+  labelHeroNovo: {
+    fontSize: 11,
+    color: "#64748b",
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    letterSpacing: 0.7,
+  },
+
+  nomeAlunoHeroNovo: {
+    marginTop: 4,
+    fontSize: 25,
+    color: "#111827",
+    fontWeight: "bold",
+  },
+
+  dadosAlunoHeroNovo: {
+    marginTop: 3,
+    fontSize: 14,
+    color: "#475569",
+    fontWeight: "600",
+  },
+
+  linhaHeroNovo: {
+    height: 1,
+    backgroundColor: "#bbf7d0",
+    marginVertical: 16,
+  },
+
+  areaMediaHeroNovo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    gap: 12,
+  },
+
+  mediaHeroNovo: {
+    marginTop: 2,
+    fontSize: 46,
+    fontWeight: "bold",
+  },
+
+  statusHeroNovo: {
+    alignItems: "flex-end",
+    flex: 1,
+  },
+
+  statusTituloHeroNovo: {
+    fontSize: 18,
+    fontWeight: "bold",
+    textAlign: "right",
+  },
+
+  statusMensagemHeroNovo: {
+    marginTop: 3,
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "right",
+  },
+
+  cardAnoLetivoNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 2,
+  },
+
+  cardTopoLinhaNovo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 10,
+  },
+
+  tituloSecaoNovo: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#111827",
+  },
+
+  badgeSerieNovo: {
+    fontSize: 11,
+    color: "#0037b0",
+    fontWeight: "bold",
+    backgroundColor: "#eff6ff",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+
+  listaAnosNovo: {
+    marginTop: 14,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
+  botaoAnoNovo: {
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+  },
+
+  botaoAnoAtivoNovo: {
+    backgroundColor: "#0037b0",
+    borderColor: "#0037b0",
+  },
+
+  botaoAnoTextoNovo: {
+    fontSize: 14,
+    color: "#475569",
+    fontWeight: "bold",
+  },
+
+  botaoAnoTextoAtivoNovo: {
+    color: "#ffffff",
+  },
+
+  infoAnoLetivoNovo: {
+    marginTop: 12,
+    fontSize: 13,
+    color: "#64748b",
+    lineHeight: 18,
+  },
+
+  menuPrincipalNovo: {
+    marginTop: 18,
+    marginBottom: 4,
+    backgroundColor: "#ffffff",
+    borderRadius: 22,
+    padding: 6,
+    flexDirection: "row",
+    gap: 4,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 2,
+  },
+
+  menuBotaoNovo: {
+    flex: 1,
+    borderRadius: 16,
+    paddingVertical: 11,
+    alignItems: "center",
+  },
+
+  menuBotaoAtivoNovo: {
+    backgroundColor: "#dbeafe",
+  },
+
+  menuTextoNovo: {
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "bold",
+  },
+
+  menuTextoAtivoNovo: {
+    color: "#0037b0",
+  },
   subtitulo: { marginTop: 22, marginBottom: 10, fontSize: 21, fontWeight: "bold", color: "#1f2937" },
   cardAluno: { marginTop: 20, borderRadius: 24, padding: 18, borderWidth: 1 },
   areaPerfil: { flexDirection: "row", alignItems: "center", gap: 14 },
