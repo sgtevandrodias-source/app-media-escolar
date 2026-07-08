@@ -1297,37 +1297,41 @@ function importarBackup() {
             As notas são salvas separadamente para cada ano letivo.
           </Text>
         </View>
-
-        <View style={styles.menuPrincipalNovo}>
-          {([
-            ["inicio", "Início"],
-            ["notas", "Notas"],
-            ["planejamento", "Planejamento"],
-            ["alunos", "Alunos"],
-          ] as [AbaApp, string][]).map(([aba, rotulo]) => (
-            <Pressable
-              key={aba}
-              style={[
-                styles.menuBotaoNovo,
-                abaAtiva === aba && styles.menuBotaoAtivoNovo,
-              ]}
-              onPress={() => setAbaAtiva(aba)}
-            >
-              <Text
-                style={[
-                  styles.menuTextoNovo,
-                  abaAtiva === aba && styles.menuTextoAtivoNovo,
-                ]}
-              >
-                {rotulo}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
       </>
     );
   }
+  function renderMenuInferior() {
+    const itens: { aba: AbaApp; rotulo: string; icone: string }[] = [
+      { aba: "inicio", rotulo: "Início", icone: "⌂" },
+      { aba: "notas", rotulo: "Notas", icone: "★" },
+      { aba: "planejamento", rotulo: "Planejamento", icone: "□" },
+      { aba: "alunos", rotulo: "Alunos", icone: "👥" },
+    ];
 
+    return (
+      <View style={styles.menuInferiorNovo}>
+        {itens.map((item) => {
+          const ativo = abaAtiva === item.aba;
+
+          return (
+            <Pressable
+              key={item.aba}
+              style={[styles.menuInferiorBotaoNovo, ativo && styles.menuInferiorBotaoAtivoNovo]}
+              onPress={() => setAbaAtiva(item.aba)}
+            >
+              <Text style={[styles.menuInferiorIconeNovo, ativo && styles.menuInferiorIconeAtivoNovo]}>
+                {item.icone}
+              </Text>
+
+              <Text style={[styles.menuInferiorTextoNovo, ativo && styles.menuInferiorTextoAtivoNovo]}>
+                {item.rotulo}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    );
+  }
   function renderSeletorAlunoCompacto() {
     return (
       <View style={styles.listaBotoes}>
@@ -1662,17 +1666,22 @@ function importarBackup() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {renderCabecalho()}
-      {abaAtiva === "inicio" && renderInicio()}
-      {abaAtiva === "notas" && renderNotas()}
-      {abaAtiva === "planejamento" && renderPlanejamento()}
-      {abaAtiva === "alunos" && renderAlunos()}
-      <Text style={styles.rodape}>Desenvolvido por EDS e Dupont</Text>
-<Text style={styles.rodapeSub}>
-  Seus dados ficam salvos apenas neste dispositivo.
-</Text>
-    </ScrollView>
+    <View style={styles.appShellNovo}>
+      <ScrollView contentContainerStyle={styles.containerComMenuInferiorNovo}>
+        {renderCabecalho()}
+        {abaAtiva === "inicio" && renderInicio()}
+        {abaAtiva === "notas" && renderNotas()}
+        {abaAtiva === "planejamento" && renderPlanejamento()}
+        {abaAtiva === "alunos" && renderAlunos()}
+
+        <Text style={styles.rodape}>Desenvolvido por EDS e Dupont</Text>
+        <Text style={styles.rodapeSub}>
+          Seus dados ficam salvos apenas neste dispositivo.
+        </Text>
+      </ScrollView>
+
+      {renderMenuInferior()}
+    </View>
   );
 }
 
@@ -2073,6 +2082,69 @@ descricao: {
     fontSize: 13,
     color: "#64748b",
     fontWeight: "600",
+  },
+    appShellNovo: {
+    flex: 1,
+    backgroundColor: "#f3f6fb",
+  },
+
+  containerComMenuInferiorNovo: {
+    padding: 20,
+    paddingTop: 58,
+    paddingBottom: 132,
+    backgroundColor: "#f3f6fb",
+    flexGrow: 1,
+  },
+
+  menuInferiorNovo: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 16,
+    height: 82,
+    backgroundColor: "#ffffff",
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingHorizontal: 8,
+    elevation: 8,
+  },
+
+  menuInferiorBotaoNovo: {
+    flex: 1,
+    height: 66,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  menuInferiorBotaoAtivoNovo: {
+    backgroundColor: "#dbeafe",
+  },
+
+  menuInferiorIconeNovo: {
+    fontSize: 24,
+    color: "#475569",
+    fontWeight: "bold",
+    lineHeight: 28,
+  },
+
+  menuInferiorIconeAtivoNovo: {
+    color: "#0037b0",
+  },
+
+  menuInferiorTextoNovo: {
+    marginTop: 3,
+    fontSize: 12,
+    color: "#475569",
+    fontWeight: "bold",
+  },
+
+  menuInferiorTextoAtivoNovo: {
+    color: "#0037b0",
   },
   subtitulo: { marginTop: 22, marginBottom: 10, fontSize: 21, fontWeight: "bold", color: "#1f2937" },
   cardAluno: { marginTop: 20, borderRadius: 24, padding: 18, borderWidth: 1 },
