@@ -1301,12 +1301,12 @@ function importarBackup() {
     );
   }
   function renderMenuInferior() {
-    const itens: { aba: AbaApp; rotulo: string; icone: string }[] = [
-      { aba: "inicio", rotulo: "Início", icone: "⌂" },
-      { aba: "notas", rotulo: "Notas", icone: "★" },
-      { aba: "planejamento", rotulo: "Planejamento", icone: "□" },
-      { aba: "alunos", rotulo: "Alunos", icone: "👥" },
-    ];
+   const itens: { aba: AbaApp; rotulo: string; icone: string }[] = [
+  { aba: "inicio", rotulo: "Início", icone: "⌂" },
+  { aba: "notas", rotulo: "Notas", icone: "★" },
+  { aba: "planejamento", rotulo: "Planejamento", icone: "□" },
+  { aba: "alunos", rotulo: "Perfil", icone: "⚙" },
+];
 
     return (
       <View style={styles.menuInferiorNovo}>
@@ -1894,13 +1894,21 @@ function importarBackup() {
       <>
         <View style={styles.cardAlunosTopoNovo}>
           <View>
-            <Text style={styles.labelHeroNovo}>Gerenciamento</Text>
-            <Text style={styles.tituloAlunosNovo}>Meus Alunos</Text>
+            <Text style={styles.labelHeroNovo}>Perfil</Text>
+            <Text style={styles.tituloAlunosNovo}>Configurações do app</Text>
             <Text style={styles.infoAlunosNovo}>
-              {filhos.length}/{LIMITE_FILHOS} alunos cadastrados
-            </Text>
+            Meus filhos, backup, licença e informações do Média CMB
+          </Text>
           </View>
-
+          <View style={styles.cardSecaoPerfilNovo}>
+  <View>
+    <Text style={styles.labelHeroNovo}>Cadastro</Text>
+    <Text style={styles.tituloSecaoPerfilNovo}>Meus filhos (alunos)</Text>
+    <Text style={styles.infoSecaoPerfilNovo}>
+      {filhos.length}/{LIMITE_FILHOS} alunos cadastrados neste dispositivo.
+    </Text>
+  </View>
+</View>
           <View style={styles.barraLimiteAlunosNovo}>
             <View
               style={[
@@ -2057,7 +2065,32 @@ function importarBackup() {
             </Pressable>
           </View>
         </View>
+<View style={styles.cardPerfilInfoNovo}>
+  <Text style={styles.labelHeroNovo}>Licença</Text>
+  <Text style={styles.tituloPerfilInfoNovo}>App ativado neste dispositivo</Text>
 
+  <Text style={styles.infoPerfilInfoNovo}>
+    A licença do Média CMB fica vinculada ao aparelho usado na ativação.
+    Cada chave pode ser usada em até 2 dispositivos autorizados.
+  </Text>
+
+  <View style={styles.caixaStatusLicencaPerfilNovo}>
+    <Text style={styles.statusLicencaPerfilTextoNovo}>Licença ativa</Text>
+  </View>
+</View>
+<View style={styles.cardPerfilInfoNovo}>
+  <Text style={styles.labelHeroNovo}>Sobre o app</Text>
+  <Text style={styles.tituloPerfilInfoNovo}>Média CMB</Text>
+
+  <Text style={styles.infoPerfilInfoNovo}>
+    Aplicativo desenvolvido para auxiliar no acompanhamento das médias escolares,
+    planejamento de recuperação e organização das notas por ano letivo.
+  </Text>
+
+  <Text style={styles.infoPerfilInfoNovo}>
+    Desenvolvido por EDS e Dupont.
+  </Text>
+</View>
         {mensagem ? <Text style={styles.mensagem}>{mensagem}</Text> : null}
 
         {modoFormulario && (
@@ -3447,6 +3480,70 @@ descricao: {
     color: "#dc2626",
     fontWeight: "bold",
     fontSize: 14,
+  },
+    cardSecaoPerfilNovo: {
+    marginTop: 18,
+    backgroundColor: "#f8fafc",
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+
+  tituloSecaoPerfilNovo: {
+    marginTop: 4,
+    fontSize: 22,
+    color: "#0037b0",
+    fontWeight: "bold",
+  },
+
+  infoSecaoPerfilNovo: {
+    marginTop: 4,
+    fontSize: 13,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+
+  cardPerfilInfoNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 2,
+  },
+
+  tituloPerfilInfoNovo: {
+    marginTop: 6,
+    fontSize: 21,
+    color: "#111827",
+    fontWeight: "bold",
+  },
+
+  infoPerfilInfoNovo: {
+    marginTop: 10,
+    fontSize: 14,
+    color: "#475569",
+    lineHeight: 20,
+    fontWeight: "600",
+  },
+
+  caixaStatusLicencaPerfilNovo: {
+    marginTop: 14,
+    alignSelf: "flex-start",
+    backgroundColor: "#ecfdf5",
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+  },
+
+  statusLicencaPerfilTextoNovo: {
+    color: "#166534",
+    fontSize: 13,
+    fontWeight: "bold",
   },
   subtitulo: { marginTop: 22, marginBottom: 10, fontSize: 21, fontWeight: "bold", color: "#1f2937" },
   cardAluno: { marginTop: 20, borderRadius: 24, padding: 18, borderWidth: 1 },
