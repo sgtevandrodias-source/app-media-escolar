@@ -573,7 +573,11 @@ const [pixCopiaCola, setPixCopiaCola] = useState("");
   useEffect(() => {
     async function carregarDados() {
       try {
-        const dadosSalvos = await AsyncStorage.getItem(CHAVE_STORAGE);
+        let dadosSalvos = await AsyncStorage.getItem(CHAVE_STORAGE);
+
+if (!dadosSalvos && Platform.OS === "web" && typeof window !== "undefined") {
+  dadosSalvos = window.localStorage.getItem(CHAVE_STORAGE);
+}
         if (dadosSalvos) {
           const dados = JSON.parse(dadosSalvos);
           if (Array.isArray(dados)) {
@@ -660,14 +664,20 @@ function obterAnosDisponiveis() {
   return Array.from(anos).sort();
 }
   async function salvarFilhosNoDispositivo(filhosAtualizados: Filho[]) {
-    try {
-      const dados: DadosSalvos = { filhos: filhosAtualizados };
-      await AsyncStorage.setItem(CHAVE_STORAGE, JSON.stringify(dados));
-    } catch (erro) {
-      console.log("Erro ao salvar imediatamente:", erro);
-      setMensagem("Não foi possível salvar a alteração agora.");
+  try {
+    const dados: DadosSalvos = { filhos: filhosAtualizados };
+    const conteudo = JSON.stringify(dados);
+
+    await AsyncStorage.setItem(CHAVE_STORAGE, conteudo);
+
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.localStorage.setItem(CHAVE_STORAGE, conteudo);
     }
+  } catch (erro) {
+    console.log("Erro ao salvar imediatamente:", erro);
+    setMensagem("Não foi possível salvar a alteração agora.");
   }
+}
   function atualizarCampo(campo: keyof NotasTrimestre, valor: string) {
   const novosFilhos = filhos.map((filhoAtual, indexFilho) => {
     if (indexFilho !== filhoSelecionado) return filhoAtual;
@@ -743,7 +753,7 @@ function obterAnosDisponiveis() {
     setTurmaFormulario(turmaPadrao(serie));
   }
 
-  function salvarFilho() {
+  async function salvarFilho() {
     const nomeLimpo = nomeFormulario.trim();
     if (!nomeLimpo) {
       setMensagem("Informe o nome do aluno.");
@@ -759,7 +769,7 @@ function obterAnosDisponiveis() {
       const filhosAtualizados = [...filhos, novoFilho];
 
       setFilhos(filhosAtualizados);
-      void salvarFilhosNoDispositivo(filhosAtualizados);
+      await salvarFilhosNoDispositivo(filhosAtualizados);
       setFilhoSelecionado(filhos.length);
       setDisciplinaSelecionada(0);
       setTrimestreSelecionado("t1");
@@ -799,10 +809,10 @@ function obterAnosDisponiveis() {
       anosLetivos: anosLetivosAtualizados,
     };
   });
-            setFilhos(filhosAtualizados);
-      void salvarFilhosNoDispositivo(filhosAtualizados);
+           setFilhos(filhosAtualizados);
+await salvarFilhosNoDispositivo(filhosAtualizados);
 
-      setDisciplinaSelecionada(0);
+setDisciplinaSelecionada(0); 
       setTrimestreSelecionado("t1");
       setModoFormulario(null);
       setMensagem("Dados do aluno atualizados.");
@@ -841,24 +851,23 @@ function obterAnosDisponiveis() {
         return { ...item, fotoUri };
       });
 
-            setFilhos(filhosAtualizados);
-      void salvarFilhosNoDispositivo(filhosAtualizados);
-      setMensagem("Foto atualizada e salva automaticamente. Não precisa clicar em Salvar.");
+      setFilhos(filhosAtualizados);
+await salvarFilhosNoDispositivo(filhosAtualizados);
+setMensagem("Foto atualizada e salva automaticamente. Não precisa clicar em Salvar.");
     } catch (erro) {
       console.log("Erro ao escolher foto:", erro);
       setMensagem("Não foi possível escolher a foto agora.");
     }
   }
-
-  function removerFotoAluno() {
+async function removerFotoAluno() {
     const filhosAtualizados = filhos.map((item, index) => {
       if (index !== filhoSelecionado) return item;
       return { ...item, fotoUri: "" };
     });
 
-        setFilhos(filhosAtualizados);
-    void salvarFilhosNoDispositivo(filhosAtualizados);
-    setMensagem("Foto removida.");
+    setFilhos(filhosAtualizados);
+await salvarFilhosNoDispositivo(filhosAtualizados);
+setMensagem("Foto removida.");
   }
 async function exportarBackup() {
   try {
