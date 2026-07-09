@@ -856,46 +856,91 @@ setDisciplinaSelecionada(0);
       setAbaAtiva("inicio");
     }
   }
+async function compactarFotoPerfil(imagem: ImagePicker.ImagePickerAsset) {
+  if (Platform.OS === "web" && typeof document !== "undefined") {
+    return new Promise<string>((resolve, reject) => {
+      const img = document.createElement("img");
 
-  async function alterarFotoAluno() {
-    try {
-      const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      img.onload = () => {
+        const tamanhoMaximo = 260;
+        const proporcao = Math.min(
+          tamanhoMaximo / img.width,
+          tamanhoMaximo / img.height,
+          1
+        );
 
-      if (!permissao.granted) {
-        setMensagem("Permita o acesso às fotos para escolher uma imagem do aluno.");
-        return;
-      }
+        const largura = Math.max(1, Math.round(img.width * proporcao));
+        const altura = Math.max(1, Math.round(img.height * proporcao));
 
-      const resultado = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.25,
-        base64: true,
-      });
+        const canvas = document.createElement("canvas");
+        canvas.width = largura;
+        canvas.height = altura;
 
-      if (resultado.canceled) return;
+        const contexto = canvas.getContext("2d");
 
-      const imagem = resultado.assets?.[0];
-      if (!imagem) return;
+        if (!contexto) {
+          reject(new Error("Não foi possível compactar a foto."));
+          return;
+        }
 
-      const fotoUri = imagem.base64
-        ? `data:image/jpeg;base64,${imagem.base64}`
-        : imagem.uri;
+        contexto.drawImage(img, 0, 0, largura, altura);
 
-      const filhosAtualizados = filhos.map((item, index) => {
-        if (index !== filhoSelecionado) return item;
-        return { ...item, fotoUri };
-      });
+        const fotoCompactada = canvas.toDataURL("image/jpeg", 0.55);
+        resolve(fotoCompactada);
+      };
 
-      setFilhos(filhosAtualizados);
-await salvarFilhosNoDispositivo(filhosAtualizados);
-setMensagem("Foto atualizada e salva automaticamente. Não precisa clicar em Salvar.");
-    } catch (erro) {
-      console.log("Erro ao escolher foto:", erro);
-      setMensagem("Não foi possível escolher a foto agora.");
-    }
+      img.onerror = () => {
+        reject(new Error("Não foi possível carregar a foto para compactar."));
+      };
+
+      img.src = imagem.uri;
+    });
   }
+
+  if (imagem.base64) {
+    return `data:image/jpeg;base64,${imagem.base64}`;
+  }
+
+  return imagem.uri;
+}
+  async function alterarFotoAluno() {
+  try {
+    const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permissao.granted) {
+      setMensagem("Permita o acesso às fotos para escolher uma imagem do aluno.");
+      return;
+    }
+
+    const resultado = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.2,
+      base64: Platform.OS !== "web",
+    });
+
+    if (resultado.canceled) return;
+
+    const imagem = resultado.assets?.[0];
+    if (!imagem) return;
+
+    const fotoUri = await compactarFotoPerfil(imagem);
+
+    const filhosAtualizados = filhos.map((item, index) => {
+      if (index !== filhoSelecionado) return item;
+      return { ...item, fotoUri };
+    });
+
+    setFilhos(filhosAtualizados);
+    await salvarFilhosNoDispositivo(filhosAtualizados);
+
+    setMensagem("Foto atualizada e salva automaticamente.");
+  } catch (erro) {
+    console.log("Erro ao escolher foto:", erro);
+    setMensagem("Não foi possível salvar a foto. Tente usar uma foto menor ou tirar um print recortado do rosto.");
+  }
+}
 async function removerFotoAluno() {
   const filhosAtualizados = filhos.map((item, index) => {
     if (index !== filhoSelecionado) return item;
