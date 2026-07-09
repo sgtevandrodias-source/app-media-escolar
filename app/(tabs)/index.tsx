@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Image,
   Platform,
@@ -636,6 +636,13 @@ const disciplina = filho.disciplinas[disciplinaSelecionada] ?? filho.disciplinas
   const resumoDisciplinas = calcularResumoDisciplinas(filho);
   const npDesejadaNumero = textoParaNumero(npDesejada) ?? 8.0;
   const nomeAP = prefixoAP(trimestreSelecionado);
+    const scrollPrincipalRef = useRef<ScrollView>(null);
+
+  function rolarParaFormularioAluno() {
+    setTimeout(() => {
+      scrollPrincipalRef.current?.scrollToEnd({ animated: true });
+    }, 150);
+  }
 function obterAnosDisponiveis() {
   const anos = new Set<string>();
 
@@ -705,6 +712,7 @@ function obterAnosDisponiveis() {
     setSerieFormulario("7EF");
     setTurmaFormulario(turmaPadrao("7EF"));
     setAbaAtiva("alunos");
+    rolarParaFormularioAluno();
   }
 
   function abrirEditarFilho() {
@@ -820,7 +828,7 @@ function obterAnosDisponiveis() {
       });
 
       setFilhos(filhosAtualizados);
-      setMensagem("Foto do aluno atualizada.");
+      setMensagem("Foto atualizada e salva automaticamente. Não precisa clicar em Salvar.");
     } catch (erro) {
       console.log("Erro ao escolher foto:", erro);
       setMensagem("Não foi possível escolher a foto agora.");
@@ -2007,32 +2015,33 @@ function importarBackup() {
                 <View style={styles.linhaAlunoListaNovo} />
 
                 <View style={styles.acoesAlunoListaNovo}>
-                  <Pressable
-                    style={styles.botaoAcaoAlunoNovo}
-                    onPress={() => {
-                      setFilhoSelecionado(index);
-                      setDisciplinaSelecionada(0);
-                      setTrimestreSelecionado("t1");
-                      setMensagem("");
-                      setModoFormulario("editar");
-                      setNomeFormulario(item.nome);
-                      setSerieFormulario(alunoVisual.serie);
-                      setTurmaFormulario(alunoVisual.turma);
-                    }}
-                  >
-                    <Text style={styles.botaoAcaoAlunoTextoNovo}>Editar</Text>
-                  </Pressable>
+  <Pressable
+    style={styles.botaoAcaoAlunoNovo}
+    onPress={() => {
+      setFilhoSelecionado(index);
+      setDisciplinaSelecionada(0);
+      setTrimestreSelecionado("t1");
+      setMensagem("Role até o formulário abaixo para editar e salvar os dados do aluno.");
+      setModoFormulario("editar");
+      setNomeFormulario(item.nome);
+      setSerieFormulario(alunoVisual.serie);
+      setTurmaFormulario(alunoVisual.turma);
+      rolarParaFormularioAluno();
+    }}
+  >
+    <Text style={styles.botaoAcaoAlunoTextoNovo}>Editar</Text>
+  </Pressable>
 
-                  <Pressable
-                    style={styles.botaoAcaoAlunoNovo}
-                    onPress={() => {
-                      setFilhoSelecionado(index);
-                      setAbaAtiva("inicio");
-                    }}
-                  >
-                    <Text style={styles.botaoAcaoAlunoTextoSecNovo}>Ver notas</Text>
-                  </Pressable>
-                </View>
+  <Pressable
+    style={styles.botaoAcaoAlunoNovo}
+    onPress={() => {
+      setFilhoSelecionado(index);
+      setAbaAtiva("inicio");
+    }}
+  >
+    <Text style={styles.botaoAcaoAlunoTextoSecNovo}>Ver notas</Text>
+  </Pressable>
+</View>
               </Pressable>
             );
           })}
@@ -2198,7 +2207,10 @@ function importarBackup() {
 
   return (
     <View style={styles.appShellNovo}>
-      <ScrollView contentContainerStyle={styles.containerComMenuInferiorNovo}>
+      <ScrollView
+  ref={scrollPrincipalRef}
+  contentContainerStyle={styles.containerComMenuInferiorNovo}
+>
         {renderCabecalho()}
         {abaAtiva === "inicio" && renderInicio()}
         {abaAtiva === "notas" && renderNotas()}
