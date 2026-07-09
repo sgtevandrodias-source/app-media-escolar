@@ -659,6 +659,15 @@ function obterAnosDisponiveis() {
 
   return Array.from(anos).sort();
 }
+  async function salvarFilhosNoDispositivo(filhosAtualizados: Filho[]) {
+    try {
+      const dados: DadosSalvos = { filhos: filhosAtualizados };
+      await AsyncStorage.setItem(CHAVE_STORAGE, JSON.stringify(dados));
+    } catch (erro) {
+      console.log("Erro ao salvar imediatamente:", erro);
+      setMensagem("Não foi possível salvar a alteração agora.");
+    }
+  }
   function atualizarCampo(campo: keyof NotasTrimestre, valor: string) {
   const novosFilhos = filhos.map((filhoAtual, indexFilho) => {
     if (indexFilho !== filhoSelecionado) return filhoAtual;
@@ -699,8 +708,8 @@ function obterAnosDisponiveis() {
   });
 
   setFilhos(novosFilhos);
+  void salvarFilhosNoDispositivo(novosFilhos);
 }
-
   function abrirNovoFilho() {
     if (filhos.length >= LIMITE_FILHOS) {
       setMensagem("Limite de 5 alunos atingido.");
@@ -746,8 +755,11 @@ function obterAnosDisponiveis() {
         setMensagem("Limite de 5 alunos atingido.");
         return;
       }
-      const novoFilho = criarFilho(nomeLimpo, serieFormulario, turmaFormulario);
-      setFilhos([...filhos, novoFilho]);
+            const novoFilho = criarFilho(nomeLimpo, serieFormulario, turmaFormulario);
+      const filhosAtualizados = [...filhos, novoFilho];
+
+      setFilhos(filhosAtualizados);
+      void salvarFilhosNoDispositivo(filhosAtualizados);
       setFilhoSelecionado(filhos.length);
       setDisciplinaSelecionada(0);
       setTrimestreSelecionado("t1");
@@ -787,7 +799,9 @@ function obterAnosDisponiveis() {
       anosLetivos: anosLetivosAtualizados,
     };
   });
-      setFilhos(filhosAtualizados);
+            setFilhos(filhosAtualizados);
+      void salvarFilhosNoDispositivo(filhosAtualizados);
+
       setDisciplinaSelecionada(0);
       setTrimestreSelecionado("t1");
       setModoFormulario(null);
@@ -827,7 +841,8 @@ function obterAnosDisponiveis() {
         return { ...item, fotoUri };
       });
 
-      setFilhos(filhosAtualizados);
+            setFilhos(filhosAtualizados);
+      void salvarFilhosNoDispositivo(filhosAtualizados);
       setMensagem("Foto atualizada e salva automaticamente. Não precisa clicar em Salvar.");
     } catch (erro) {
       console.log("Erro ao escolher foto:", erro);
@@ -841,7 +856,8 @@ function obterAnosDisponiveis() {
       return { ...item, fotoUri: "" };
     });
 
-    setFilhos(filhosAtualizados);
+        setFilhos(filhosAtualizados);
+    void salvarFilhosNoDispositivo(filhosAtualizados);
     setMensagem("Foto removida.");
   }
 async function exportarBackup() {
