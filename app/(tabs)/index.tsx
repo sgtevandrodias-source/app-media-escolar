@@ -573,10 +573,14 @@ const [pixCopiaCola, setPixCopiaCola] = useState("");
   useEffect(() => {
     async function carregarDados() {
       try {
-        let dadosSalvos = await AsyncStorage.getItem(CHAVE_STORAGE);
+let dadosSalvos: string | null = null;
 
-if (!dadosSalvos && Platform.OS === "web" && typeof window !== "undefined") {
+if (Platform.OS === "web" && typeof window !== "undefined") {
   dadosSalvos = window.localStorage.getItem(CHAVE_STORAGE);
+}
+
+if (!dadosSalvos) {
+  dadosSalvos = await AsyncStorage.getItem(CHAVE_STORAGE);
 }
         if (dadosSalvos) {
           const dados = JSON.parse(dadosSalvos);
@@ -589,10 +593,13 @@ if (!dadosSalvos && Platform.OS === "web" && typeof window !== "undefined") {
               disciplinas: normalizarDisciplinas("7EF", dados),
             };
             setFilhos([filhoMigrado]);
-          } else if (dados && Array.isArray(dados.filhos)) {
-            const filhosNormalizados = dados.filhos.map((item: any, index: number) => normalizarFilho(item, index));
-            setFilhos(filhosNormalizados.length ? filhosNormalizados : [criarFilho()]);
-          }
+      } else if (dados && Array.isArray(dados.filhos)) {
+  const filhosNormalizados = dados.filhos.map((item: any, index: number) =>
+    normalizarFilho(item, index)
+  );
+
+  setFilhos(filhosNormalizados.length ? filhosNormalizados : [criarFilho()]);
+}
         }
       } catch (erro) {
         console.log("Erro ao carregar dados:", erro);
@@ -860,15 +867,15 @@ setMensagem("Foto atualizada e salva automaticamente. Não precisa clicar em Sal
     }
   }
 async function removerFotoAluno() {
-    const filhosAtualizados = filhos.map((item, index) => {
-      if (index !== filhoSelecionado) return item;
-      return { ...item, fotoUri: "" };
-    });
+  const filhosAtualizados = filhos.map((item, index) => {
+    if (index !== filhoSelecionado) return item;
+    return { ...item, fotoUri: "" };
+  });
 
-    setFilhos(filhosAtualizados);
-await salvarFilhosNoDispositivo(filhosAtualizados);
-setMensagem("Foto removida.");
-  }
+  setFilhos(filhosAtualizados);
+  await salvarFilhosNoDispositivo(filhosAtualizados);
+  setMensagem("Foto removida.");
+}
 async function exportarBackup() {
   try {
     const backup: BackupMediaCMB = {
