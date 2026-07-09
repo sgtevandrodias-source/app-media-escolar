@@ -48,7 +48,10 @@ type Filho = {
   anosLetivos?: Record<string, DadosAnoLetivo>;
 };
 
-type DadosSalvos = { filhos: Filho[] };
+type DadosSalvos = {
+  filhos: Filho[];
+  atualizadoEm?: string;
+};
 type DisciplinaBase = { nome: string; usaAE: boolean };
 
 type SerieConfig = {
@@ -571,58 +574,76 @@ const [pixCopiaCola, setPixCopiaCola] = useState("");
   }, []);
 
   useEffect(() => {
-    async function carregarDados() {
-      try {
-let dadosSalvos: string | null = null;
+  async function carregarDados() {
+    try {
+      const dadosAsync = await AsyncStorage.getItem(CHAVE_STORAGE);
 
-if (Platform.OS === "web" && typeof window !== "undefined") {
-  dadosSalvos = window.localStorage.getItem(CHAVE_STORAGE);
-}
+      const dadosWeb =
+        Platform.OS === "web" && typeof window !== "undefined"
+          ? window.localStorage.getItem(CHAVE_STORAGE)
+          : null;
 
-if (!dadosSalvos) {
-  dadosSalvos = await AsyncStorage.getItem(CHAVE_STORAGE);
-}
-        if (dadosSalvos) {
-          const dados = JSON.parse(dadosSalvos);
-          if (Array.isArray(dados)) {
-            const filhoMigrado: Filho = {
-              id: String(Date.now()),
-              nome: "Aluno 1",
-              serie: "7EF",
-              turma: turmaPadrao("7EF"),
-              disciplinas: normalizarDisciplinas("7EF", dados),
-            };
-            setFilhos([filhoMigrado]);
-      } else if (dados && Array.isArray(dados.filhos)) {
-  const filhosNormalizados = dados.filhos.map((item: any, index: number) =>
-    normalizarFilho(item, index)
-  );
-
-  setFilhos(filhosNormalizados.length ? filhosNormalizados : [criarFilho()]);
-}
+      function obterAtualizadoEm(conteudo: string | null) {
+        try {
+          if (!conteudo) return "";
+          const dados = JSON.parse(conteudo);
+          return String(dados?.atualizadoEm ?? "");
+        } catch {
+          return "";
         }
-      } catch (erro) {
-        console.log("Erro ao carregar dados:", erro);
-      } finally {
-        setDadosCarregados(true);
       }
+
+      const dataAsync = obterAtualizadoEm(dadosAsync);
+      const dataWeb = obterAtualizadoEm(dadosWeb);
+
+      let dadosSalvos: string | null = null;
+
+      if (dataAsync || dataWeb) {
+        dadosSalvos = dataAsync >= dataWeb ? dadosAsync : dadosWeb;
+      } else {
+        dadosSalvos = dadosAsync || dadosWeb;
+      }
+
+      if (dadosSalvos) {
+        const dados = JSON.parse(dadosSalvos);
+
+        if (Array.isArray(dados)) {
+          const filhoMigrado: Filho = {
+            id: String(Date.now()),
+            nome: "Aluno 1",
+            serie: "7EF",
+            turma: turmaPadrao("7EF"),
+            disciplinas: normalizarDisciplinas("7EF", dados),
+          };
+
+          setFilhos([filhoMigrado]);
+        } else if (dados && Array.isArray(dados.filhos)) {
+          const filhosNormalizados = dados.filhos.map((item: any, index: number) =>
+            normalizarFilho(item, index)
+          );
+
+          setFilhos(filhosNormalizados.length ? filhosNormalizados : [criarFilho()]);
+        }
+      }
+    } catch (erro) {
+      console.log("Erro ao carregar dados:", erro);
+    } finally {
+      setDadosCarregados(true);
     }
-    carregarDados();
-  }, []);
+  }
+
+  carregarDados();
+}, []);
 
   useEffect(() => {
-    async function salvarDados() {
-      try {
-        if (dadosCarregados) {
-          const dados: DadosSalvos = { filhos };
-          await AsyncStorage.setItem(CHAVE_STORAGE, JSON.stringify(dados));
-        }
-      } catch (erro) {
-        console.log("Erro ao salvar dados:", erro);
-      }
+  async function salvarDados() {
+    if (dadosCarregados) {
+      await salvarFilhosNoDispositivo(filhos);
     }
-    salvarDados();
-  }, [filhos, dadosCarregados]);
+  }
+
+  salvarDados();
+}, [filhos, dadosCarregados]);
 
   const filhoBase = filhos[filhoSelecionado] ?? filhos[0];
 const dadosAnoLetivo = obterDadosAnoLetivo(filhoBase, anoLetivoSelecionado);
@@ -671,18 +692,27 @@ function obterAnosDisponiveis() {
   return Array.from(anos).sort();
 }
   async function salvarFilhosNoDispositivo(filhosAtualizados: Filho[]) {
+  const dados: DadosSalvos = {
+    filhos: filhosAtualizados,
+    atualizadoEm: new Date().toISOString(),
+  };
+
+  const conteudo = JSON.stringify(dados);
+
   try {
-    const dados: DadosSalvos = { filhos: filhosAtualizados };
-    const conteudo = JSON.stringify(dados);
-
     await AsyncStorage.setItem(CHAVE_STORAGE, conteudo);
-
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      window.localStorage.setItem(CHAVE_STORAGE, conteudo);
-    }
   } catch (erro) {
-    console.log("Erro ao salvar imediatamente:", erro);
+    console.log("Erro ao salvar no AsyncStorage:", erro);
     setMensagem("Não foi possível salvar a alteração agora.");
+  }
+
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(CHAVE_STORAGE, conteudo);
+    } catch (erroWeb) {
+  console.log("Erro ao salvar no localStorage:", erroWeb);
+  setMensagem("Não foi possível salvar a foto ou os dados no navegador. Tente usar uma foto menor.");
+}
   }
 }
   function atualizarCampo(campo: keyof NotasTrimestre, valor: string) {
@@ -840,7 +870,7 @@ setDisciplinaSelecionada(0);
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.45,
+        quality: 0.25,
         base64: true,
       });
 
