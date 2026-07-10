@@ -245,7 +245,7 @@ function obterDadosAnoLetivo(filho: Filho, anoLetivo: string): DadosAnoLetivo {
   return {
     serie: filho.serie,
     turma: filho.turma,
-    disciplinas: filho.disciplinas,
+    disciplinas: criarDisciplinasPorSerie(filho.serie),
   };
 }
 function normalizarFilho(valor: any, indice: number): Filho {
@@ -526,6 +526,11 @@ export default function HomeScreen() {
   const [mensagem, setMensagem] = useState("");
   const [abaAtiva, setAbaAtiva] = useState<AbaApp>("selecao");
   const [anoLetivoSelecionado, setAnoLetivoSelecionado] = useState(ANO_LETIVO_PADRAO);
+  const [mostrarSeletorAno, setMostrarSeletorAno] = useState(false);
+  const [modoNovoAno, setModoNovoAno] = useState(false);
+  const [anoNovoFormulario, setAnoNovoFormulario] = useState(String(Number(ANO_LETIVO_PADRAO) + 1));
+  const [serieAnoFormulario, setSerieAnoFormulario] = useState<SerieEscolar>("7EF");
+  const [turmaAnoFormulario, setTurmaAnoFormulario] = useState(turmaPadrao("7EF"));
   const [licencaCarregada, setLicencaCarregada] = useState(false);
   const [licencaAtiva, setLicencaAtiva] = useState(false);
   const [deviceId, setDeviceId] = useState("");
@@ -684,12 +689,96 @@ function obterAnosDisponiveis() {
     }
   });
 
-  anos.add(ANO_LETIVO_PADRAO);
-
   const anoAtualNumero = Number(ANO_LETIVO_PADRAO);
+
+  anos.add(String(anoAtualNumero - 1));
+  anos.add(String(anoAtualNumero));
   anos.add(String(anoAtualNumero + 1));
 
   return Array.from(anos).sort();
+}
+async function selecionarAnoLetivo(ano: string) {
+  const filhosAtualizados = filhos.map((item, index) => {
+    if (index !== filhoSelecionado) return item;
+
+    const anosExistentes = item.anosLetivos ?? {};
+
+    if (anosExistentes[ano]) {
+      return {
+        ...item,
+        anoLetivoAtivo: ano,
+      };
+    }
+
+    const novoAno: DadosAnoLetivo = {
+      serie: item.serie,
+      turma: item.turma,
+      disciplinas: criarDisciplinasPorSerie(item.serie),
+    };
+
+    return {
+      ...item,
+      anoLetivoAtivo: ano,
+      anosLetivos: {
+        ...anosExistentes,
+        [ano]: novoAno,
+      },
+    };
+  });
+
+  setFilhos(filhosAtualizados);
+  await salvarFilhosNoDispositivo(filhosAtualizados);
+
+  setAnoLetivoSelecionado(ano);
+  setDisciplinaSelecionada(0);
+  setTrimestreSelecionado("t1");
+  setMostrarSeletorAno(false);
+  setModoNovoAno(false);
+  setMensagem("");
+}
+function selecionarSerieNovoAno(serie: SerieEscolar) {
+  setSerieAnoFormulario(serie);
+  setTurmaAnoFormulario(turmaPadrao(serie));
+}
+async function salvarNovoAnoLetivo() {
+  const anoLimpo = anoNovoFormulario.trim();
+
+  if (!anoLimpo || anoLimpo.length !== 4) {
+    setMensagem("Informe um ano letivo válido. Exemplo: 2027.");
+    return;
+  }
+
+  const filhosAtualizados = filhos.map((item, index) => {
+    if (index !== filhoSelecionado) return item;
+
+    const novoAno: DadosAnoLetivo = {
+      serie: serieAnoFormulario,
+      turma: turmaAnoFormulario,
+      disciplinas: criarDisciplinasPorSerie(serieAnoFormulario),
+    };
+
+    return {
+      ...item,
+      serie: serieAnoFormulario,
+      turma: turmaAnoFormulario,
+      disciplinas: novoAno.disciplinas,
+      anoLetivoAtivo: anoLimpo,
+      anosLetivos: {
+        ...(item.anosLetivos ?? {}),
+        [anoLimpo]: novoAno,
+      },
+    };
+  });
+
+  setFilhos(filhosAtualizados);
+  await salvarFilhosNoDispositivo(filhosAtualizados);
+
+  setAnoLetivoSelecionado(anoLimpo);
+  setDisciplinaSelecionada(0);
+  setTrimestreSelecionado("t1");
+  setMostrarSeletorAno(false);
+  setModoNovoAno(false);
+  setMensagem("Ano letivo criado com notas zeradas.");
 }
   async function salvarFilhosNoDispositivo(filhosAtualizados: Filho[]) {
   const dados: DadosSalvos = {
@@ -1314,107 +1403,260 @@ function importarBackup() {
     </ScrollView>
   );
 }
-    function renderCabecalho() {
-    return (
-      <>
-        <View style={styles.topoAppNovo}>
-          <View style={styles.topoMarcaNovo}>
-            <Image
-              source={require("../../assets/images/Icon-512-cmb.png")}
-              style={styles.topoLogoNovo}
-            />
+function renderSeletorAnoLetivo() {
+  return (
+    <View style={styles.cardAnoLetivoNovo}>
+      <View style={styles.cardTopoLinhaNovo}>
+        <Text style={styles.tituloSecaoNovo}>Ano letivo</Text>
+        <Text style={styles.badgeSerieNovo}>{obterRotuloSerie(filho.serie)}</Text>
+      </View>
 
-            <View>
-              <Text style={styles.topoTituloNovo}>Média CMB</Text>
-              <Text style={styles.topoSubtituloNovo}>Notas e recuperação escolar</Text>
-            </View>
-          </View>
+      <Pressable
+        style={styles.botaoDropdownAnoNovo}
+        onPress={() => {
+          setMostrarSeletorAno(!mostrarSeletorAno);
+          setModoNovoAno(false);
+        }}
+      >
+        <View>
+          <Text style={styles.dropdownAnoLabelNovo}>Ano selecionado</Text>
+          <Text style={styles.dropdownAnoValorNovo}>{anoLetivoSelecionado}</Text>
+        </View>
 
-          <Pressable style={styles.botaoConfigNovo} onPress={() => setAbaAtiva("alunos")}>
-            <Text style={styles.botaoConfigTextoNovo}>⚙</Text>
+        <Text style={styles.dropdownAnoSetaNovo}>
+          {mostrarSeletorAno ? "▲" : "▼"}
+        </Text>
+      </Pressable>
+
+      {mostrarSeletorAno ? (
+        <View style={styles.listaDropdownAnoNovo}>
+          {obterAnosDisponiveis().map((ano) => (
+            <Pressable
+              key={ano}
+              style={[
+                styles.itemDropdownAnoNovo,
+                anoLetivoSelecionado === ano && styles.itemDropdownAnoAtivoNovo,
+              ]}
+              onPress={() => {
+                void selecionarAnoLetivo(ano);
+              }}
+            >
+              <Text
+                style={[
+                  styles.itemDropdownAnoTextoNovo,
+                  anoLetivoSelecionado === ano && styles.itemDropdownAnoTextoAtivoNovo,
+                ]}
+              >
+                {ano}
+              </Text>
+
+              {anoLetivoSelecionado === ano ? (
+                <Text style={styles.itemDropdownAnoCheckNovo}>✓</Text>
+              ) : null}
+            </Pressable>
+          ))}
+
+          <Pressable
+            style={styles.botaoCriarAnoNovo}
+            onPress={() => {
+              setModoNovoAno(true);
+              setAnoNovoFormulario(String(Number(anoLetivoSelecionado) + 1));
+              setSerieAnoFormulario(filho.serie);
+              setTurmaAnoFormulario(turmaPadrao(filho.serie));
+            }}
+          >
+            <Text style={styles.botaoCriarAnoTextoNovo}>＋ Criar novo ano letivo</Text>
           </Pressable>
         </View>
+      ) : null}
 
-        <View style={styles.cardHeroAlunoNovo}>
-          <View style={styles.areaPerfilHeroNovo}>
-            <View style={[styles.avatarHeroNovo, { backgroundColor: classificacaoGeral.corAvatar }]}>
-              {filho.fotoUri ? (
-                <Image source={{ uri: filho.fotoUri }} style={styles.avatarImagemHeroNovo} />
-              ) : (
-                <Text style={styles.avatarTextoHeroNovo}>{obterIniciais(filho.nome)}</Text>
-              )}
-            </View>
+      {modoNovoAno ? (
+        <View style={styles.formNovoAnoLetivoNovo}>
+          <Text style={styles.labelSelecaoNovo}>Novo ano letivo</Text>
 
-            <View style={styles.infoAlunoHeroNovo}>
-              <Text style={styles.labelHeroNovo}>Estudante</Text>
-              <Text style={styles.nomeAlunoHeroNovo}>{filho.nome}</Text>
-              <Text style={styles.dadosAlunoHeroNovo}>
-                {obterRotuloSerie(filho.serie)} • Turma {filho.turma}
-              </Text>
-            </View>
-          </View>
+          <TextInput
+            style={styles.inputLicenca}
+            value={anoNovoFormulario}
+            onChangeText={setAnoNovoFormulario}
+            keyboardType="number-pad"
+            placeholder="Ex.: 2027"
+            placeholderTextColor="#94a3b8"
+          />
 
-          <View style={styles.linhaHeroNovo} />
+          <Text style={styles.labelSelecaoNovo}>Série neste ano</Text>
 
-          <View style={styles.areaMediaHeroNovo}>
-            <View>
-              <Text style={styles.labelHeroNovo}>Média geral</Text>
-              <Text style={[styles.mediaHeroNovo, { color: classificacaoGeral.corTexto }]}>
-                {mostrarNota(mediaGeralAluno)}
-              </Text>
-            </View>
-
-            <View style={styles.statusHeroNovo}>
-              <Text style={[styles.statusTituloHeroNovo, { color: classificacaoGeral.corTexto }]}>
-                {classificacaoGeral.titulo}
-              </Text>
-              <Text style={[styles.statusMensagemHeroNovo, { color: classificacaoGeral.corTexto }]}>
-                {classificacaoGeral.mensagem}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.cardAnoLetivoNovo}>
-          <View style={styles.cardTopoLinhaNovo}>
-            <Text style={styles.tituloSecaoNovo}>Ano letivo</Text>
-            <Text style={styles.badgeSerieNovo}>{obterRotuloSerie(filho.serie)}</Text>
-          </View>
-
-          <View style={styles.listaAnosNovo}>
-            {obterAnosDisponiveis().map((ano) => (
+          <View style={styles.listaBotoes}>
+            {SERIES.map((serie) => (
               <Pressable
-                key={ano}
+                key={serie.id}
                 style={[
-                  styles.botaoAnoNovo,
-                  anoLetivoSelecionado === ano && styles.botaoAnoAtivoNovo,
+                  styles.chipDisciplinaNovo,
+                  serieAnoFormulario === serie.id && styles.chipDisciplinaAtivoNovo,
                 ]}
-                onPress={() => {
-                  setAnoLetivoSelecionado(ano);
-                  setDisciplinaSelecionada(0);
-                  setTrimestreSelecionado("t1");
-                  setMensagem("");
-                }}
+                onPress={() => selecionarSerieNovoAno(serie.id)}
               >
                 <Text
                   style={[
-                    styles.botaoAnoTextoNovo,
-                    anoLetivoSelecionado === ano && styles.botaoAnoTextoAtivoNovo,
+                    styles.chipDisciplinaTextoNovo,
+                    serieAnoFormulario === serie.id && styles.chipDisciplinaTextoAtivoNovo,
                   ]}
                 >
-                  {ano}
+                  {serie.rotulo}
                 </Text>
               </Pressable>
             ))}
           </View>
 
-          <Text style={styles.infoAnoLetivoNovo}>
-            As notas são salvas separadamente para cada ano letivo.
-          </Text>
+          <Text style={styles.labelSelecaoNovo}>Turma neste ano</Text>
+
+          <View style={styles.listaBotoes}>
+            {gerarTurmas(serieAnoFormulario).map((turma) => (
+              <Pressable
+                key={turma}
+                style={[
+                  styles.chipTurmaAlunoNovo,
+                  turmaAnoFormulario === turma && styles.chipDisciplinaAtivoNovo,
+                ]}
+                onPress={() => setTurmaAnoFormulario(turma)}
+              >
+                <Text
+                  style={[
+                    styles.chipDisciplinaTextoNovo,
+                    turmaAnoFormulario === turma && styles.chipDisciplinaTextoAtivoNovo,
+                  ]}
+                >
+                  {turma}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <View style={styles.caixaAvisoPlanejamentoNovo}>
+            <Text style={styles.avisoPlanejamentoTextoNovo}>
+              O novo ano será criado com disciplinas zeradas. As notas dos outros anos serão mantidas separadas.
+            </Text>
+          </View>
+
+          <View style={styles.botoesFormularioAlunoNovo}>
+            <Pressable style={styles.botaoSalvarAlunoNovo} onPress={salvarNovoAnoLetivo}>
+              <Text style={styles.botaoSalvarAlunoTextoNovo}>Criar ano</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.botaoCancelarAlunoNovo}
+              onPress={() => {
+                setModoNovoAno(false);
+                setMensagem("");
+              }}
+            >
+              <Text style={styles.botaoCancelarAlunoTextoNovo}>Cancelar</Text>
+            </Pressable>
+          </View>
         </View>
-      </>
-    );
-  }
+      ) : null}
+
+      <Text style={styles.infoAnoLetivoNovo}>
+        As notas são salvas separadamente para cada ano letivo.
+      </Text>
+    </View>
+  );
+}
+  function renderCabecalho() {
+  return (
+    <>
+      <View style={styles.topoAppNovo}>
+        <View style={styles.topoMarcaNovo}>
+          <Image
+            source={require("../../assets/images/Icon-512-cmb.png")}
+            style={styles.topoLogoNovo}
+          />
+
+          <View>
+            <Text style={styles.topoTituloNovo}>Média CMB</Text>
+            <Text style={styles.topoSubtituloNovo}>
+              Notas e recuperação escolar
+            </Text>
+          </View>
+        </View>
+
+        <Pressable
+          style={styles.botaoConfigNovo}
+          onPress={() => setAbaAtiva("alunos")}
+        >
+          <Text style={styles.botaoConfigTextoNovo}>⚙</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.cardHeroAlunoNovo}>
+        <View style={styles.areaPerfilHeroNovo}>
+          <View
+            style={[
+              styles.avatarHeroNovo,
+              { backgroundColor: classificacaoGeral.corAvatar },
+            ]}
+          >
+            {filho.fotoUri ? (
+              <Image
+                source={{ uri: filho.fotoUri }}
+                style={styles.avatarImagemHeroNovo}
+              />
+            ) : (
+              <Text style={styles.avatarTextoHeroNovo}>
+                {obterIniciais(filho.nome)}
+              </Text>
+            )}
+          </View>
+
+          <View style={styles.infoAlunoHeroNovo}>
+            <Text style={styles.labelHeroNovo}>Estudante</Text>
+            <Text style={styles.nomeAlunoHeroNovo}>{filho.nome}</Text>
+            <Text style={styles.dadosAlunoHeroNovo}>
+              {obterRotuloSerie(filho.serie)} • Turma {filho.turma}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.linhaHeroNovo} />
+
+        <View style={styles.areaMediaHeroNovo}>
+          <View>
+            <Text style={styles.labelHeroNovo}>Média geral</Text>
+            <Text
+              style={[
+                styles.mediaHeroNovo,
+                { color: classificacaoGeral.corTexto },
+              ]}
+            >
+              {mostrarNota(mediaGeralAluno)}
+            </Text>
+          </View>
+
+          <View style={styles.statusHeroNovo}>
+            <Text
+              style={[
+                styles.statusTituloHeroNovo,
+                { color: classificacaoGeral.corTexto },
+              ]}
+            >
+              {classificacaoGeral.titulo}
+            </Text>
+
+            <Text
+              style={[
+                styles.statusMensagemHeroNovo,
+                { color: classificacaoGeral.corTexto },
+              ]}
+            >
+              {classificacaoGeral.mensagem}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {renderSeletorAnoLetivo()}
+    </>
+  );
+}
   function renderMenuInferior() {
   const itens: { aba: AbaApp; rotulo: string; icone: string }[] = [
   { aba: "selecao", rotulo: "Alunos", icone: "☰" },
@@ -1747,38 +1989,7 @@ function renderSelecaoAluno() {
             <Text style={styles.badgeMediaTextoNovo}>{mostrarNota(mediaGeralAluno)}</Text>
             <Text style={styles.badgeMediaSubNovo}>Média geral</Text>
           </View>
-        </View>
-
-        <View style={styles.blocoSelecaoNovo}>
-          <Text style={styles.labelSelecaoNovo}>Ano letivo</Text>
-
-          <View style={styles.listaAnosNovo}>
-            {obterAnosDisponiveis().map((ano) => (
-              <Pressable
-                key={ano}
-                style={[
-                  styles.botaoAnoNovo,
-                  anoLetivoSelecionado === ano && styles.botaoAnoAtivoNovo,
-                ]}
-                onPress={() => {
-                  setAnoLetivoSelecionado(ano);
-                  setDisciplinaSelecionada(0);
-                  setTrimestreSelecionado("t1");
-                  setMensagem("");
-                }}
-              >
-                <Text
-                  style={[
-                    styles.botaoAnoTextoNovo,
-                    anoLetivoSelecionado === ano && styles.botaoAnoTextoAtivoNovo,
-                  ]}
-                >
-                  {ano}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
+        </View>      
 
         <View style={styles.blocoSelecaoNovo}>
           <Text style={styles.labelSelecaoNovo}>Trimestre</Text>
@@ -3935,6 +4146,98 @@ indicadorAlunoNovo: {
 indicadorAlunoAtivoNovo: {
   width: 24,
   backgroundColor: "#0037b0",
+},
+botaoDropdownAnoNovo: {
+  marginTop: 16,
+  backgroundColor: "#f8fafc",
+  borderRadius: 18,
+  padding: 16,
+  borderWidth: 1,
+  borderColor: "#cbd5e1",
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+},
+
+dropdownAnoLabelNovo: {
+  fontSize: 12,
+  color: "#64748b",
+  fontWeight: "bold",
+  textTransform: "uppercase",
+  letterSpacing: 0.7,
+},
+
+dropdownAnoValorNovo: {
+  marginTop: 3,
+  fontSize: 26,
+  color: "#0037b0",
+  fontWeight: "bold",
+},
+
+dropdownAnoSetaNovo: {
+  fontSize: 18,
+  color: "#0037b0",
+  fontWeight: "bold",
+},
+
+listaDropdownAnoNovo: {
+  marginTop: 10,
+  backgroundColor: "#ffffff",
+  borderRadius: 18,
+  borderWidth: 1,
+  borderColor: "#e2e8f0",
+  overflow: "hidden",
+},
+
+itemDropdownAnoNovo: {
+  paddingVertical: 14,
+  paddingHorizontal: 16,
+  borderBottomWidth: 1,
+  borderBottomColor: "#e2e8f0",
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+},
+
+itemDropdownAnoAtivoNovo: {
+  backgroundColor: "#eff6ff",
+},
+
+itemDropdownAnoTextoNovo: {
+  fontSize: 17,
+  color: "#475569",
+  fontWeight: "bold",
+},
+
+itemDropdownAnoTextoAtivoNovo: {
+  color: "#0037b0",
+},
+
+itemDropdownAnoCheckNovo: {
+  color: "#0037b0",
+  fontSize: 18,
+  fontWeight: "bold",
+},
+
+botaoCriarAnoNovo: {
+  paddingVertical: 15,
+  paddingHorizontal: 16,
+  backgroundColor: "#ecfdf5",
+},
+
+botaoCriarAnoTextoNovo: {
+  color: "#166534",
+  fontSize: 15,
+  fontWeight: "bold",
+},
+
+formNovoAnoLetivoNovo: {
+  marginTop: 14,
+  backgroundColor: "#f8fafc",
+  borderRadius: 20,
+  padding: 14,
+  borderWidth: 1,
+  borderColor: "#dbeafe",
 },
   subtitulo: { marginTop: 22, marginBottom: 10, fontSize: 21, fontWeight: "bold", color: "#1f2937" },
   cardAluno: { marginTop: 20, borderRadius: 24, padding: 18, borderWidth: 1 },
