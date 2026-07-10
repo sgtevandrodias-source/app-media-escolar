@@ -2456,10 +2456,14 @@ function renderSelecaoAluno() {
 {abaAtiva === "planejamento" && renderPlanejamento()}
 {abaAtiva === "alunos" && renderAlunos()}
 
-        <Text style={styles.rodape}>Desenvolvido por EDS e Dupont</Text>
-        <Text style={styles.rodapeSub}>
-          Seus dados ficam salvos apenas neste dispositivo.
-        </Text>
+        {abaAtiva !== "selecao" ? (
+  <>
+    <Text style={styles.rodape}>Desenvolvido por EDS e Dupont</Text>
+    <Text style={styles.rodapeSub}>
+      Seus dados ficam salvos apenas neste dispositivo.
+    </Text>
+  </>
+) : null}
       </ScrollView>
 
       {renderMenuInferior()}
@@ -3823,18 +3827,20 @@ infoSelecaoAlunoNovo: {
 
 carrosselAlunosNovo: {
   marginTop: 18,
+  marginHorizontal: -20,
 },
 
 slideAlunoNovo: {
-  width: "100%",
-  paddingRight: 2,
+  width: 330,
+  paddingLeft: 20,
+  paddingRight: 10,
 },
 
 cardEscolhaAlunoNovo: {
-  minHeight: 420,
+  minHeight: 410,
   backgroundColor: "#ffffff",
   borderRadius: 30,
-  padding: 24,
+  padding: 22,
   borderWidth: 1,
   borderColor: "#e2e8f0",
   alignItems: "center",
@@ -3848,8 +3854,8 @@ cardEscolhaAlunoAtivoNovo: {
 },
 
 avatarEscolhaAlunoNovo: {
-  width: 138,
-  height: 138,
+  width: 126,
+  height: 126,
   borderRadius: 42,
   alignItems: "center",
   justifyContent: "center",
@@ -3871,7 +3877,7 @@ avatarEscolhaTextoNovo: {
 
 nomeEscolhaAlunoNovo: {
   marginTop: 18,
-  fontSize: 30,
+  fontSize: 27,
   color: "#111827",
   fontWeight: "bold",
   textAlign: "center",
@@ -3886,16 +3892,16 @@ dadosEscolhaAlunoNovo: {
 },
 
 caixaMediaEscolhaNovo: {
-  marginTop: 22,
+  marginTop: 20,
   width: "100%",
   borderRadius: 24,
-  padding: 18,
+  padding: 16,
   borderWidth: 1,
   alignItems: "center",
 },
 
 mediaEscolhaValorNovo: {
-  fontSize: 52,
+  fontSize: 48,
   fontWeight: "bold",
 },
 
