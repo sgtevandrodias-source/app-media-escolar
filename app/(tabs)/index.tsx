@@ -15,7 +15,7 @@ import {
 type Trimestre = "t1" | "t2" | "t3";
 type SerieEscolar = "6EF" | "7EF" | "8EF" | "9EF" | "1EM" | "2EM" | "3EM";
 type ModoFormulario = "novo" | "editar" | null;
-type AbaApp = "inicio" | "notas" | "planejamento" | "alunos";
+type AbaApp = "selecao" | "inicio" | "notas" | "planejamento" | "alunos";
 
 type NotasTrimestre = {
   ap1: string;
@@ -524,7 +524,7 @@ export default function HomeScreen() {
   const [serieFormulario, setSerieFormulario] = useState<SerieEscolar>("7EF");
   const [turmaFormulario, setTurmaFormulario] = useState(turmaPadrao("7EF"));
   const [mensagem, setMensagem] = useState("");
-  const [abaAtiva, setAbaAtiva] = useState<AbaApp>("inicio");
+  const [abaAtiva, setAbaAtiva] = useState<AbaApp>("selecao");
   const [anoLetivoSelecionado, setAnoLetivoSelecionado] = useState(ANO_LETIVO_PADRAO);
   const [licencaCarregada, setLicencaCarregada] = useState(false);
   const [licencaAtiva, setLicencaAtiva] = useState(false);
@@ -1416,10 +1416,11 @@ function importarBackup() {
     );
   }
   function renderMenuInferior() {
-   const itens: { aba: AbaApp; rotulo: string; icone: string }[] = [
+  const itens: { aba: AbaApp; rotulo: string; icone: string }[] = [
+  { aba: "selecao", rotulo: "Alunos", icone: "☰" },
   { aba: "inicio", rotulo: "Início", icone: "⌂" },
   { aba: "notas", rotulo: "Notas", icone: "★" },
-  { aba: "planejamento", rotulo: "Planejamento", icone: "□" },
+  { aba: "planejamento", rotulo: "Plano", icone: "□" },
   { aba: "alunos", rotulo: "Perfil", icone: "⚙" },
 ];
 
@@ -1491,7 +1492,136 @@ function importarBackup() {
       </View>
     );
   }
+function renderSelecaoAluno() {
+  return (
+    <>
+      <View style={styles.cardSelecaoTopoNovo}>
+        <Text style={styles.labelHeroNovo}>Escolha o estudante</Text>
+        <Text style={styles.tituloSelecaoAlunoNovo}>Quem você quer acompanhar?</Text>
+        <Text style={styles.infoSelecaoAlunoNovo}>
+          Toque no aluno para abrir as notas. Arraste para o lado para ver os demais alunos.
+        </Text>
+      </View>
 
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        style={styles.carrosselAlunosNovo}
+        onMomentumScrollEnd={(evento) => {
+          const largura = evento.nativeEvent.layoutMeasurement.width;
+          const posicao = evento.nativeEvent.contentOffset.x;
+          const novoIndice = Math.round(posicao / largura);
+
+          if (filhos[novoIndice]) {
+            setFilhoSelecionado(novoIndice);
+            setDisciplinaSelecionada(0);
+            setTrimestreSelecionado("t1");
+            setMensagem("");
+          }
+        }}
+      >
+        {filhos.map((item, index) => {
+          const dadosAlunoAno = obterDadosAnoLetivo(item, anoLetivoSelecionado);
+
+          const alunoVisual: Filho = {
+            ...item,
+            serie: dadosAlunoAno.serie,
+            turma: dadosAlunoAno.turma,
+            disciplinas: dadosAlunoAno.disciplinas,
+          };
+
+          const mediaAluno = calcularMediaGeralAluno(alunoVisual);
+          const classificacaoAluno = obterClassificacao(mediaAluno);
+
+          return (
+            <View key={item.id} style={styles.slideAlunoNovo}>
+              <Pressable
+                style={[
+                  styles.cardEscolhaAlunoNovo,
+                  filhoSelecionado === index && styles.cardEscolhaAlunoAtivoNovo,
+                ]}
+                onPress={() => {
+                  setFilhoSelecionado(index);
+                  setDisciplinaSelecionada(0);
+                  setTrimestreSelecionado("t1");
+                  setAbaAtiva("inicio");
+                  setMensagem("");
+                }}
+              >
+                <View
+                  style={[
+                    styles.avatarEscolhaAlunoNovo,
+                    { backgroundColor: classificacaoAluno.corAvatar },
+                  ]}
+                >
+                  {item.fotoUri ? (
+                    <Image
+                      source={{ uri: item.fotoUri }}
+                      style={styles.avatarEscolhaImagemNovo}
+                    />
+                  ) : (
+                    <Text style={styles.avatarEscolhaTextoNovo}>
+                      {obterIniciais(item.nome)}
+                    </Text>
+                  )}
+                </View>
+
+                <Text style={styles.nomeEscolhaAlunoNovo}>{item.nome}</Text>
+
+                <Text style={styles.dadosEscolhaAlunoNovo}>
+                  {obterRotuloSerie(alunoVisual.serie)} • Turma {alunoVisual.turma}
+                </Text>
+
+                <View
+                  style={[
+                    styles.caixaMediaEscolhaNovo,
+                    {
+                      backgroundColor: classificacaoAluno.corFundo,
+                      borderColor: classificacaoAluno.corBorda,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.mediaEscolhaValorNovo,
+                      { color: classificacaoAluno.corTexto },
+                    ]}
+                  >
+                    {mostrarNota(mediaAluno)}
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.mediaEscolhaStatusNovo,
+                      { color: classificacaoAluno.corTexto },
+                    ]}
+                  >
+                    {classificacaoAluno.titulo}
+                  </Text>
+                </View>
+
+                <Text style={styles.textoAbrirAlunoNovo}>Toque para abrir</Text>
+              </Pressable>
+            </View>
+          );
+        })}
+      </ScrollView>
+
+      <View style={styles.indicadoresAlunosNovo}>
+        {filhos.map((item, index) => (
+          <View
+            key={item.id}
+            style={[
+              styles.indicadorAlunoNovo,
+              filhoSelecionado === index && styles.indicadorAlunoAtivoNovo,
+            ]}
+          />
+        ))}
+      </View>
+    </>
+  );
+}
    function renderInicio() {
     return (
       <>
@@ -2318,11 +2448,13 @@ function importarBackup() {
   ref={scrollPrincipalRef}
   contentContainerStyle={styles.containerComMenuInferiorNovo}
 >
-        {renderCabecalho()}
-        {abaAtiva === "inicio" && renderInicio()}
-        {abaAtiva === "notas" && renderNotas()}
-        {abaAtiva === "planejamento" && renderPlanejamento()}
-        {abaAtiva === "alunos" && renderAlunos()}
+        {abaAtiva !== "selecao" && renderCabecalho()}
+
+{abaAtiva === "selecao" && renderSelecaoAluno()}
+{abaAtiva === "inicio" && renderInicio()}
+{abaAtiva === "notas" && renderNotas()}
+{abaAtiva === "planejamento" && renderPlanejamento()}
+{abaAtiva === "alunos" && renderAlunos()}
 
         <Text style={styles.rodape}>Desenvolvido por EDS e Dupont</Text>
         <Text style={styles.rodapeSub}>
@@ -3664,6 +3796,140 @@ descricao: {
     fontSize: 13,
     fontWeight: "bold",
   },
+  cardSelecaoTopoNovo: {
+  marginTop: 18,
+  backgroundColor: "#ffffff",
+  borderRadius: 24,
+  padding: 20,
+  borderWidth: 1,
+  borderColor: "#e2e8f0",
+  elevation: 2,
+},
+
+tituloSelecaoAlunoNovo: {
+  marginTop: 6,
+  fontSize: 28,
+  color: "#111827",
+  fontWeight: "bold",
+},
+
+infoSelecaoAlunoNovo: {
+  marginTop: 8,
+  fontSize: 14,
+  color: "#64748b",
+  lineHeight: 20,
+  fontWeight: "600",
+},
+
+carrosselAlunosNovo: {
+  marginTop: 18,
+},
+
+slideAlunoNovo: {
+  width: "100%",
+  paddingRight: 2,
+},
+
+cardEscolhaAlunoNovo: {
+  minHeight: 420,
+  backgroundColor: "#ffffff",
+  borderRadius: 30,
+  padding: 24,
+  borderWidth: 1,
+  borderColor: "#e2e8f0",
+  alignItems: "center",
+  justifyContent: "center",
+  elevation: 3,
+},
+
+cardEscolhaAlunoAtivoNovo: {
+  borderColor: "#0037b0",
+  backgroundColor: "#f8fbff",
+},
+
+avatarEscolhaAlunoNovo: {
+  width: 138,
+  height: 138,
+  borderRadius: 42,
+  alignItems: "center",
+  justifyContent: "center",
+  overflow: "hidden",
+  borderWidth: 4,
+  borderColor: "#ffffff",
+},
+
+avatarEscolhaImagemNovo: {
+  width: "100%",
+  height: "100%",
+},
+
+avatarEscolhaTextoNovo: {
+  color: "#ffffff",
+  fontSize: 42,
+  fontWeight: "bold",
+},
+
+nomeEscolhaAlunoNovo: {
+  marginTop: 18,
+  fontSize: 30,
+  color: "#111827",
+  fontWeight: "bold",
+  textAlign: "center",
+},
+
+dadosEscolhaAlunoNovo: {
+  marginTop: 6,
+  fontSize: 15,
+  color: "#475569",
+  fontWeight: "700",
+  textAlign: "center",
+},
+
+caixaMediaEscolhaNovo: {
+  marginTop: 22,
+  width: "100%",
+  borderRadius: 24,
+  padding: 18,
+  borderWidth: 1,
+  alignItems: "center",
+},
+
+mediaEscolhaValorNovo: {
+  fontSize: 52,
+  fontWeight: "bold",
+},
+
+mediaEscolhaStatusNovo: {
+  marginTop: 2,
+  fontSize: 16,
+  fontWeight: "bold",
+},
+
+textoAbrirAlunoNovo: {
+  marginTop: 18,
+  fontSize: 14,
+  color: "#0037b0",
+  fontWeight: "bold",
+},
+
+indicadoresAlunosNovo: {
+  marginTop: 16,
+  flexDirection: "row",
+  justifyContent: "center",
+  gap: 8,
+},
+
+indicadorAlunoNovo: {
+  width: 8,
+  height: 8,
+  borderRadius: 999,
+  backgroundColor: "#cbd5e1",
+},
+
+indicadorAlunoAtivoNovo: {
+  width: 24,
+  backgroundColor: "#0037b0",
+},
   subtitulo: { marginTop: 22, marginBottom: 10, fontSize: 21, fontWeight: "bold", color: "#1f2937" },
   cardAluno: { marginTop: 20, borderRadius: 24, padding: 18, borderWidth: 1 },
   areaPerfil: { flexDirection: "row", alignItems: "center", gap: 14 },
