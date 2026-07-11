@@ -624,7 +624,6 @@ function obterClassificacao(media: number | null): Classificacao {
   };
 }
 
-
 function mostrarNota(nota: number | null) {
   if (nota === null) return "Pendente";
   return nota.toFixed(1);
@@ -697,7 +696,8 @@ function normalizarChave(valor: string) {
 function ocultarChaveLicenca(chave: string) {
   const chaveNormalizada = normalizarChave(chave);
   if (!chaveNormalizada) return "Não informada";
-  if (chaveNormalizada.length <= 8) return `${chaveNormalizada.slice(0, 2)}••••`;
+  if (chaveNormalizada.length <= 8)
+    return `${chaveNormalizada.slice(0, 2)}••••`;
   return `${chaveNormalizada.slice(0, 4)}••••${chaveNormalizada.slice(-4)}`;
 }
 
@@ -728,11 +728,16 @@ function mensagemErroAtivacao(status: number, resultado: any) {
   if (mensagemServidor) return mensagemServidor;
 
   if (status === 400) return "Confira a chave informada e tente novamente.";
-  if (status === 401 || status === 403) return "Esta chave não está autorizada.";
-  if (status === 404) return "Serviço de ativação não encontrado. Atualize o app e tente novamente.";
-  if (status === 409) return "Esta chave atingiu o limite de dispositivos autorizados.";
-  if (status === 429) return "Muitas tentativas em sequência. Aguarde um pouco e tente novamente.";
-  if (status >= 500) return "O servidor de licenças está temporariamente indisponível.";
+  if (status === 401 || status === 403)
+    return "Esta chave não está autorizada.";
+  if (status === 404)
+    return "Serviço de ativação não encontrado. Atualize o app e tente novamente.";
+  if (status === 409)
+    return "Esta chave atingiu o limite de dispositivos autorizados.";
+  if (status === 429)
+    return "Muitas tentativas em sequência. Aguarde um pouco e tente novamente.";
+  if (status >= 500)
+    return "O servidor de licenças está temporariamente indisponível.";
 
   return "Não foi possível ativar esta chave.";
 }
@@ -838,7 +843,8 @@ export default function HomeScreen() {
   );
   const [licencaCarregada, setLicencaCarregada] = useState(false);
   const [licencaAtiva, setLicencaAtiva] = useState(false);
-  const [dadosLicencaLocal, setDadosLicencaLocal] = useState<LicencaLocal | null>(null);
+  const [dadosLicencaLocal, setDadosLicencaLocal] =
+    useState<LicencaLocal | null>(null);
   const [deviceId, setDeviceId] = useState("");
   const [chaveAtivacao, setChaveAtivacao] = useState("");
   const [mensagemLicenca, setMensagemLicenca] = useState("");
@@ -854,7 +860,10 @@ export default function HomeScreen() {
   const { width: larguraTela } = useWindowDimensions();
   const larguraConteudo = Math.min(Math.max(larguraTela - 40, 280), 720);
   const larguraSlideAluno = Math.min(Math.max(larguraTela - 40, 280), 520);
-  const margemMenuInferior = Math.max((larguraTela - Math.min(larguraTela - 32, 720)) / 2, 16);
+  const margemMenuInferior = Math.max(
+    (larguraTela - Math.min(larguraTela - 32, 720)) / 2,
+    16,
+  );
 
   useEffect(() => {
     async function carregarLicenca() {
@@ -1013,6 +1022,7 @@ export default function HomeScreen() {
   const npDesejadaNumero = textoParaNumero(npDesejada) ?? 8.0;
   const nomeAP = prefixoAP(trimestreSelecionado);
   const scrollPrincipalRef = useRef<ScrollView>(null);
+  const carrosselAlunosRef = useRef<ScrollView>(null);
 
   function rolarParaFormularioAluno() {
     setTimeout(() => {
@@ -2239,6 +2249,20 @@ export default function HomeScreen() {
       </View>
     );
   }
+  function navegarParaAluno(indice: number) {
+    const indiceSeguro = Math.max(0, Math.min(indice, filhos.length - 1));
+
+    carrosselAlunosRef.current?.scrollTo({
+      x: indiceSeguro * larguraSlideAluno,
+      animated: true,
+    });
+
+    setFilhoSelecionado(indiceSeguro);
+    setDisciplinaSelecionada(0);
+    setTrimestreSelecionado("t1");
+    setMensagem("");
+  }
+
   function renderSelecaoAluno() {
     return (
       <>
@@ -2248,12 +2272,13 @@ export default function HomeScreen() {
             Quem você quer acompanhar?
           </Text>
           <Text style={styles.infoSelecaoAlunoNovo}>
-            Toque no aluno para abrir as notas. Arraste para o lado para ver os
-            demais alunos.
+            Toque no aluno para abrir as notas. No celular, arraste para o lado;
+            no computador, use as setas abaixo.
           </Text>
         </View>
 
         <ScrollView
+          ref={carrosselAlunosRef}
           horizontal
           snapToInterval={larguraSlideAluno}
           decelerationRate="fast"
@@ -2369,10 +2394,43 @@ export default function HomeScreen() {
           })}
         </ScrollView>
 
+        {Platform.OS === "web" && filhos.length > 1 ? (
+          <View style={styles.controlesCarrosselDesktopNovo}>
+            <Pressable
+              style={[
+                styles.botaoCarrosselDesktopNovo,
+                filhoSelecionado === 0 && styles.botaoCarrosselDesabilitadoNovo,
+              ]}
+              onPress={() => navegarParaAluno(filhoSelecionado - 1)}
+              disabled={filhoSelecionado === 0}
+            >
+              <Text style={styles.botaoCarrosselTextoNovo}>‹ Anterior</Text>
+            </Pressable>
+
+            <Text style={styles.contadorCarrosselNovo}>
+              {filhoSelecionado + 1} de {filhos.length}
+            </Text>
+
+            <Pressable
+              style={[
+                styles.botaoCarrosselDesktopNovo,
+                filhoSelecionado === filhos.length - 1 &&
+                  styles.botaoCarrosselDesabilitadoNovo,
+              ]}
+              onPress={() => navegarParaAluno(filhoSelecionado + 1)}
+              disabled={filhoSelecionado === filhos.length - 1}
+            >
+              <Text style={styles.botaoCarrosselTextoNovo}>Próximo ›</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         <View style={styles.indicadoresAlunosNovo}>
           {filhos.map((item, index) => (
-            <View
+            <Pressable
               key={item.id}
+              onPress={() => navegarParaAluno(index)}
+              hitSlop={8}
               style={[
                 styles.indicadorAlunoNovo,
                 filhoSelecionado === index && styles.indicadorAlunoAtivoNovo,
@@ -2391,7 +2449,8 @@ export default function HomeScreen() {
             <View>
               <Text style={styles.tituloSecaoNovo}>Visão geral</Text>
               <Text style={styles.infoInicioNovo}>
-                A média geral considera igualmente as disciplinas que já possuem notas.
+                A média geral considera igualmente as disciplinas que já possuem
+                notas.
               </Text>
             </View>
 
@@ -3220,21 +3279,27 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.linhaDetalheLicencaPerfilNovo}>
-              <Text style={styles.rotuloDetalheLicencaPerfilNovo}>Plataforma</Text>
+              <Text style={styles.rotuloDetalheLicencaPerfilNovo}>
+                Plataforma
+              </Text>
               <Text style={styles.valorDetalheLicencaPerfilNovo}>
                 {obterNomePlataforma()}
               </Text>
             </View>
 
             <View style={styles.linhaDetalheLicencaPerfilNovo}>
-              <Text style={styles.rotuloDetalheLicencaPerfilNovo}>Ativada em</Text>
+              <Text style={styles.rotuloDetalheLicencaPerfilNovo}>
+                Ativada em
+              </Text>
               <Text style={styles.valorDetalheLicencaPerfilNovo}>
                 {formatarDataHora(dadosLicencaLocal?.ativadaEm)}
               </Text>
             </View>
 
             <View style={styles.linhaDetalheLicencaPerfilNovo}>
-              <Text style={styles.rotuloDetalheLicencaPerfilNovo}>Última validação</Text>
+              <Text style={styles.rotuloDetalheLicencaPerfilNovo}>
+                Última validação
+              </Text>
               <Text style={styles.valorDetalheLicencaPerfilNovo}>
                 {formatarDataHora(
                   dadosLicencaLocal?.ultimaValidacaoEm ??
@@ -5003,6 +5068,43 @@ const styles = StyleSheet.create({
     marginTop: 18,
     fontSize: 14,
     color: "#0037b0",
+    fontWeight: "bold",
+  },
+
+  controlesCarrosselDesktopNovo: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 14,
+  },
+
+  botaoCarrosselDesktopNovo: {
+    minWidth: 118,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    alignItems: "center",
+  },
+
+  botaoCarrosselDesabilitadoNovo: {
+    opacity: 0.35,
+  },
+
+  botaoCarrosselTextoNovo: {
+    color: "#0037b0",
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+
+  contadorCarrosselNovo: {
+    minWidth: 56,
+    textAlign: "center",
+    color: "#475569",
+    fontSize: 13,
     fontWeight: "bold",
   },
 
