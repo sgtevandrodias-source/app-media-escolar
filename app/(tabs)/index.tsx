@@ -17,7 +17,13 @@ import {
 type Trimestre = "t1" | "t2" | "t3";
 type SerieEscolar = "6EF" | "7EF" | "8EF" | "9EF" | "1EM" | "2EM" | "3EM";
 type ModoFormulario = "novo" | "editar" | null;
-type AbaApp = "selecao" | "inicio" | "notas" | "planejamento" | "alunos";
+type AbaApp =
+  | "selecao"
+  | "inicio"
+  | "notas"
+  | "planejamento"
+  | "simulador"
+  | "alunos";
 
 type NotasTrimestre = {
   ap1: string;
@@ -822,6 +828,13 @@ export default function HomeScreen() {
   const [trimestreSelecionado, setTrimestreSelecionado] =
     useState<Trimestre>("t1");
   const [npDesejada, setNpDesejada] = useState("8.0");
+  const [disciplinaSimulador, setDisciplinaSimulador] = useState(0);
+  const [trimestreSimulador, setTrimestreSimulador] =
+    useState<Trimestre>("t1");
+  const [notasSimuladas, setNotasSimuladas] =
+    useState<NotasTrimestre>(criarTrimestre());
+  const [mediaDesejadaSimulador, setMediaDesejadaSimulador] =
+    useState("6.0");
   const [dadosCarregados, setDadosCarregados] = useState(false);
   const [modoFormulario, setModoFormulario] = useState<ModoFormulario>(null);
   const [nomeFormulario, setNomeFormulario] = useState("");
@@ -1034,9 +1047,77 @@ export default function HomeScreen() {
   const disciplinasSemNotas =
     filho.disciplinas.length - disciplinasComNotas.length;
   const npDesejadaNumero = textoParaNumero(npDesejada) ?? 8.0;
+  const disciplinaBaseSimulador =
+    filho.disciplinas[disciplinaSimulador] ?? filho.disciplinas[0];
+  const simulacaoPreenchida = Object.values(notasSimuladas).some(
+    (valor) => valor.trim() !== "",
+  );
+  const trimestreCalculadoSimulador = simulacaoPreenchida
+    ? notasSimuladas
+    : disciplinaBaseSimulador.trimestres[trimestreSimulador];
+  const disciplinaCalculadaSimulador: Disciplina = {
+    ...disciplinaBaseSimulador,
+    trimestres: {
+      ...disciplinaBaseSimulador.trimestres,
+      [trimestreSimulador]: trimestreCalculadoSimulador,
+    },
+  };
+  const mediaAPSimulada = calcularMediaAP(trimestreCalculadoSimulador);
+  const npSimulada = calcularNP(
+    disciplinaBaseSimulador,
+    trimestreCalculadoSimulador,
+  );
+  const nprSimulada = calcularNPR(
+    disciplinaBaseSimulador,
+    trimestreCalculadoSimulador,
+  );
+  const notaConsideradaSimulada = calcularNotaConsiderada(
+    disciplinaBaseSimulador,
+    trimestreCalculadoSimulador,
+  );
+  const mediaAnualSimulada = calcularMediaFinalParcial(
+    disciplinaCalculadaSimulador,
+  );
+  const mediaDesejadaNumero =
+    textoParaNumero(mediaDesejadaSimulador) ?? 6.0;
+  const diferencaMetaSimulador =
+    mediaAnualSimulada === null
+      ? null
+      : arredondar(mediaAnualSimulada - mediaDesejadaNumero);
   const nomeAP = prefixoAP(trimestreSelecionado);
   const scrollPrincipalRef = useRef<ScrollView>(null);
   const carrosselAlunosRef = useRef<ScrollView>(null);
+
+  function atualizarCampoSimulacao(
+    campo: keyof NotasTrimestre,
+    valor: string,
+  ) {
+    setNotasSimuladas((atual) => ({
+      ...atual,
+      [campo]: normalizarEntradaNota(valor),
+    }));
+  }
+
+  function limparSimulacao() {
+    setNotasSimuladas(criarTrimestre());
+    setMediaDesejadaSimulador("6.0");
+  }
+
+  function carregarNotasAtuaisNoSimulador() {
+    setNotasSimuladas({
+      ...disciplinaBaseSimulador.trimestres[trimestreSimulador],
+    });
+  }
+
+  function trocarDisciplinaSimulador(index: number) {
+    setDisciplinaSimulador(index);
+    setNotasSimuladas(criarTrimestre());
+  }
+
+  function trocarTrimestreSimulador(trimestre: Trimestre) {
+    setTrimestreSimulador(trimestre);
+    setNotasSimuladas(criarTrimestre());
+  }
 
   function rolarParaFormularioAluno() {
     setTimeout(() => {
@@ -2218,6 +2299,7 @@ export default function HomeScreen() {
       { aba: "inicio", rotulo: "Início", icone: "⌂" },
       { aba: "notas", rotulo: "Notas", icone: "★" },
       { aba: "planejamento", rotulo: "Plano", icone: "□" },
+      { aba: "simulador", rotulo: "Simular", icone: "◇" },
       { aba: "alunos", rotulo: "Perfil", icone: "⚙" },
     ];
 
@@ -3137,6 +3219,263 @@ export default function HomeScreen() {
     );
   }
 
+  function renderSimulador() {
+    const resultadoMeta =
+      mediaAnualSimulada === null
+        ? "Preencha as notas hipotéticas para calcular a projeção."
+        : diferencaMetaSimulador !== null && diferencaMetaSimulador >= 0
+          ? `Meta atingida com margem de ${diferencaMetaSimulador.toFixed(1)} ponto(s).`
+          : `Faltam ${Math.abs(diferencaMetaSimulador ?? 0).toFixed(1)} ponto(s) para a meta.`;
+
+    return (
+      <>
+        <View style={styles.cardSimuladorTopoNovo}>
+          <Text style={styles.labelHeroNovo}>Simulador de notas</Text>
+          <Text style={styles.tituloSimuladorNovo}>
+            Teste cenários sem alterar as notas reais
+          </Text>
+          <Text style={styles.infoSimuladorNovo}>
+            Escolha uma disciplina e um trimestre. Os valores informados aqui são
+            temporários e não são gravados no cadastro do aluno.
+          </Text>
+        </View>
+
+        <View style={styles.blocoSelecaoNovo}>
+          <Text style={styles.labelSelecaoNovo}>Disciplina</Text>
+          <View style={styles.listaBotoes}>
+            {filho.disciplinas.map((item, index) => (
+              <Pressable
+                key={item.nome}
+                style={[
+                  styles.chipDisciplinaNovo,
+                  disciplinaSimulador === index &&
+                    styles.chipDisciplinaAtivoNovo,
+                ]}
+                onPress={() => trocarDisciplinaSimulador(index)}
+              >
+                <Text
+                  style={[
+                    styles.chipDisciplinaTextoNovo,
+                    disciplinaSimulador === index &&
+                      styles.chipDisciplinaTextoAtivoNovo,
+                  ]}
+                >
+                  {obterSiglaDisciplina(item.nome)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.blocoSelecaoNovo}>
+          <Text style={styles.labelSelecaoNovo}>Trimestre</Text>
+          <View style={styles.trimestresNovo}>
+            {(["t1", "t2", "t3"] as Trimestre[]).map((item) => (
+              <Pressable
+                key={item}
+                style={[
+                  styles.trimestreBotaoNovo,
+                  trimestreSimulador === item &&
+                    styles.trimestreBotaoAtivoNovo,
+                ]}
+                onPress={() => trocarTrimestreSimulador(item)}
+              >
+                <Text
+                  style={[
+                    styles.trimestreTextoNovo,
+                    trimestreSimulador === item &&
+                      styles.trimestreTextoAtivoNovo,
+                  ]}
+                >
+                  {tituloTrimestre(item)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.cardSimuladorNovo}>
+          <View style={styles.cardNotasTopoNovo}>
+            <View>
+              <Text style={styles.tituloDisciplinaNotasNovo}>
+                {disciplinaBaseSimulador.nome}
+              </Text>
+              <Text style={styles.subtituloDisciplinaNotasNovo}>
+                {tituloTrimestre(trimestreSimulador)} • cenário hipotético
+              </Text>
+            </View>
+            <Text style={styles.badgeSerieNovo}>
+              {obterSiglaDisciplina(disciplinaBaseSimulador.nome)}
+            </Text>
+          </View>
+
+          <View style={styles.divisorNotasNovo} />
+
+          <View style={styles.acoesSimuladorNovo}>
+            <Pressable
+              style={styles.botaoCarregarSimuladorNovo}
+              onPress={carregarNotasAtuaisNoSimulador}
+            >
+              <Text style={styles.botaoCarregarSimuladorTextoNovo}>
+                Usar notas atuais
+              </Text>
+            </Pressable>
+            <Pressable
+              style={styles.botaoLimparSimuladorNovo}
+              onPress={limparSimulacao}
+            >
+              <Text style={styles.botaoLimparSimuladorTextoNovo}>Limpar</Text>
+            </Pressable>
+          </View>
+
+          <Text style={styles.labelSelecaoNovo}>Avaliações periódicas</Text>
+          <View style={styles.linhaInputsNotasNovo}>
+            <View style={styles.caixaNotaEditavelNovo}>
+              <Text style={styles.miniLabelNotasNovo}>
+                {prefixoAP(trimestreSimulador)}.1
+              </Text>
+              <TextInput
+                style={styles.inputNotaGrandeNovo}
+                value={notasSimuladas.ap1}
+                onChangeText={(valor) => atualizarCampoSimulacao("ap1", valor)}
+                keyboardType="decimal-pad"
+                placeholder="0,0"
+                placeholderTextColor="#cbd5e1"
+              />
+            </View>
+            <View style={styles.caixaNotaEditavelNovo}>
+              <Text style={styles.miniLabelNotasNovo}>
+                {prefixoAP(trimestreSimulador)}.2
+              </Text>
+              <TextInput
+                style={styles.inputNotaGrandeNovo}
+                value={notasSimuladas.ap2}
+                onChangeText={(valor) => atualizarCampoSimulacao("ap2", valor)}
+                keyboardType="decimal-pad"
+                placeholder="0,0"
+                placeholderTextColor="#cbd5e1"
+              />
+            </View>
+          </View>
+
+          <View style={styles.linhaResumoNotasNovo}>
+            <Text style={styles.resumoNotasLabelNovo}>Média simulada das APs</Text>
+            <Text style={styles.resumoNotasValorNovo}>
+              {mostrarNota(mediaAPSimulada)}
+            </Text>
+          </View>
+
+          <Text style={styles.labelSelecaoNovo}>GIP</Text>
+          <View style={styles.caixaGipNovo}>
+            <Text style={styles.gipLabelNovo}>Pontuação adicional hipotética</Text>
+            <TextInput
+              style={styles.inputGipNovo}
+              value={notasSimuladas.gip}
+              onChangeText={(valor) => atualizarCampoSimulacao("gip", valor)}
+              keyboardType="decimal-pad"
+              placeholder="+0,0"
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+
+          {disciplinaBaseSimulador.usaAE ? (
+            <>
+              <Text style={styles.labelSelecaoNovo}>AE</Text>
+              <View style={styles.caixaNotaEditavelCheiaNovo}>
+                <Text style={styles.miniLabelNotasNovo}>Nota hipotética da AE</Text>
+                <TextInput
+                  style={styles.inputNotaGrandeNovo}
+                  value={notasSimuladas.ae}
+                  onChangeText={(valor) => atualizarCampoSimulacao("ae", valor)}
+                  keyboardType="decimal-pad"
+                  placeholder="0,0"
+                  placeholderTextColor="#cbd5e1"
+                />
+              </View>
+            </>
+          ) : (
+            <View style={styles.caixaInfoNotasNovo}>
+              <Text style={styles.infoNotasTextoNovo}>
+                Esta disciplina não utiliza AE.
+              </Text>
+            </View>
+          )}
+
+          <Text style={styles.labelSelecaoNovo}>AR</Text>
+          <View style={styles.caixaNotaEditavelCheiaNovo}>
+            <Text style={styles.miniLabelNotasNovo}>Nota hipotética da AR</Text>
+            <TextInput
+              style={styles.inputNotaGrandeNovo}
+              value={notasSimuladas.ar}
+              onChangeText={(valor) => atualizarCampoSimulacao("ar", valor)}
+              keyboardType="decimal-pad"
+              placeholder="Opcional"
+              placeholderTextColor="#cbd5e1"
+            />
+          </View>
+
+          <View style={styles.gridResultadoSimuladorNovo}>
+            <View style={styles.caixaResultadoPequenaNovo}>
+              <Text style={styles.resultadoPequenoLabelNovo}>NP simulada</Text>
+              <Text style={styles.resultadoPequenoValorNovo}>
+                {mostrarNota(npSimulada)}
+              </Text>
+            </View>
+            <View style={styles.caixaResultadoPequenaNovo}>
+              <Text style={styles.resultadoPequenoLabelNovo}>NPR simulada</Text>
+              <Text style={styles.resultadoPequenoValorNovo}>
+                {mostrarNota(nprSimulada)}
+              </Text>
+            </View>
+            <View style={styles.caixaResultadoPequenaNovo}>
+              <Text style={styles.resultadoPequenoLabelNovo}>
+                Nota considerada
+              </Text>
+              <Text style={styles.resultadoPequenoValorNovo}>
+                {mostrarNota(notaConsideradaSimulada)}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.cardMetaSimuladorNovo}>
+          <Text style={styles.labelHeroNovo}>Projeção anual</Text>
+          <Text style={styles.tituloMetaSimuladorNovo}>Meta de média</Text>
+          <TextInput
+            style={styles.inputMetaSimuladorNovo}
+            value={mediaDesejadaSimulador}
+            onChangeText={(valor) =>
+              setMediaDesejadaSimulador(normalizarEntradaNota(valor))
+            }
+            keyboardType="decimal-pad"
+            placeholder="Ex.: 6,0"
+            placeholderTextColor="#94a3b8"
+          />
+
+          <View style={styles.linhaMetaSimuladorNovo}>
+            <View>
+              <Text style={styles.metaSimuladorLabelNovo}>Média projetada</Text>
+              <Text style={styles.metaSimuladorValorNovo}>
+                {mostrarNota(mediaAnualSimulada)}
+              </Text>
+            </View>
+            <View style={styles.statusMetaSimuladorNovo}>
+              <Text style={styles.statusMetaSimuladorTextoNovo}>
+                {resultadoMeta}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.caixaAvisoPlanejamentoNovo}>
+            <Text style={styles.avisoPlanejamentoTextoNovo}>
+              A simulação não altera nem salva as notas reais do aluno.
+            </Text>
+          </View>
+        </View>
+      </>
+    );
+  }
+
   function renderAlunos() {
     const termoPesquisa = normalizarTextoBusca(pesquisaAluno);
 
@@ -3616,6 +3955,7 @@ export default function HomeScreen() {
         {abaAtiva === "inicio" && renderInicio()}
         {abaAtiva === "notas" && renderNotas()}
         {abaAtiva === "planejamento" && renderPlanejamento()}
+        {abaAtiva === "simulador" && renderSimulador()}
         {abaAtiva === "alunos" && renderAlunos()}
 
         {abaAtiva !== "selecao" ? (
@@ -6119,4 +6459,132 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
   },
+  cardSimuladorTopoNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 2,
+  },
+  tituloSimuladorNovo: {
+    marginTop: 6,
+    fontSize: 25,
+    color: "#0037b0",
+    fontWeight: "bold",
+  },
+  infoSimuladorNovo: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#64748b",
+    lineHeight: 20,
+    fontWeight: "600",
+  },
+  cardSimuladorNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 26,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 3,
+  },
+  acoesSimuladorNovo: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 18,
+  },
+  botaoCarregarSimuladorNovo: {
+    flex: 1,
+    backgroundColor: "#eff6ff",
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+  botaoCarregarSimuladorTextoNovo: {
+    color: "#1d4ed8",
+    fontWeight: "bold",
+    fontSize: 13,
+  },
+  botaoLimparSimuladorNovo: {
+    minWidth: 96,
+    backgroundColor: "#f8fafc",
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+  },
+  botaoLimparSimuladorTextoNovo: {
+    color: "#475569",
+    fontWeight: "bold",
+    fontSize: 13,
+  },
+  gridResultadoSimuladorNovo: {
+    marginTop: 18,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  cardMetaSimuladorNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 2,
+  },
+  tituloMetaSimuladorNovo: {
+    marginTop: 5,
+    fontSize: 21,
+    color: "#111827",
+    fontWeight: "bold",
+  },
+  inputMetaSimuladorNovo: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    fontSize: 26,
+    backgroundColor: "#f8fafc",
+    color: "#0037b0",
+    fontWeight: "bold",
+  },
+  linhaMetaSimuladorNovo: {
+    marginTop: 18,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 14,
+  },
+  metaSimuladorLabelNovo: {
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "bold",
+    textTransform: "uppercase",
+  },
+  metaSimuladorValorNovo: {
+    marginTop: 3,
+    fontSize: 42,
+    color: "#166534",
+    fontWeight: "bold",
+  },
+  statusMetaSimuladorNovo: {
+    flex: 1,
+    alignItems: "flex-end",
+  },
+  statusMetaSimuladorTextoNovo: {
+    fontSize: 14,
+    color: "#475569",
+    fontWeight: "bold",
+    lineHeight: 20,
+    textAlign: "right",
+  },
+
 });
