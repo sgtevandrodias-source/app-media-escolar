@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 
@@ -623,11 +624,6 @@ function obterClassificacao(media: number | null): Classificacao {
   };
 }
 
-function situacao(media: number | null) {
-  const classificacao = obterClassificacao(media);
-  if (media === null) return classificacao.titulo;
-  return `${classificacao.titulo} — ${classificacao.mensagem}`;
-}
 
 function mostrarNota(nota: number | null) {
   if (nota === null) return "Pendente";
@@ -855,6 +851,10 @@ export default function HomeScreen() {
     "inicio" | "preparando" | "aguardando" | "confirmado"
   >("inicio");
   const [pixCopiaCola, setPixCopiaCola] = useState("");
+  const { width: larguraTela } = useWindowDimensions();
+  const larguraConteudo = Math.min(Math.max(larguraTela - 40, 280), 720);
+  const larguraSlideAluno = Math.min(Math.max(larguraTela - 40, 280), 520);
+  const margemMenuInferior = Math.max((larguraTela - Math.min(larguraTela - 32, 720)) / 2, 16);
 
   useEffect(() => {
     async function carregarLicenca() {
@@ -1210,15 +1210,6 @@ export default function HomeScreen() {
     setTurmaFormulario(turmaPadrao("7EF"));
     setAbaAtiva("alunos");
     rolarParaFormularioAluno();
-  }
-
-  function abrirEditarFilho() {
-    setMensagem("");
-    setModoFormulario("editar");
-    setNomeFormulario(filho.nome);
-    setSerieFormulario(filho.serie);
-    setTurmaFormulario(filho.turma);
-    setAbaAtiva("alunos");
   }
 
   function cancelarFormulario() {
@@ -2207,7 +2198,12 @@ export default function HomeScreen() {
     ];
 
     return (
-      <View style={styles.menuInferiorNovo}>
+      <View
+        style={[
+          styles.menuInferiorNovo,
+          { left: margemMenuInferior, right: margemMenuInferior },
+        ]}
+      >
         {itens.map((item) => {
           const ativo = abaAtiva === item.aba;
 
@@ -2243,89 +2239,6 @@ export default function HomeScreen() {
       </View>
     );
   }
-  function renderSeletorAlunoCompacto() {
-    return (
-      <View style={styles.listaBotoes}>
-        {filhos.map((item, index) => (
-          <Pressable
-            key={item.id}
-            style={[
-              styles.botao,
-              filhoSelecionado === index && styles.botaoAtivo,
-            ]}
-            onPress={() => {
-              setFilhoSelecionado(index);
-              setDisciplinaSelecionada(0);
-              setTrimestreSelecionado("t1");
-              setMensagem("");
-            }}
-          >
-            <Text
-              style={[
-                styles.botaoTexto,
-                filhoSelecionado === index && styles.botaoTextoAtivo,
-              ]}
-            >
-              {item.nome}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    );
-  }
-
-  function renderSeletorDisciplina() {
-    return (
-      <View style={styles.listaBotoes}>
-        {filho.disciplinas.map((item, index) => (
-          <Pressable
-            key={item.nome}
-            style={[
-              styles.botao,
-              disciplinaSelecionada === index && styles.botaoAtivo,
-            ]}
-            onPress={() => setDisciplinaSelecionada(index)}
-          >
-            <Text
-              style={[
-                styles.botaoTexto,
-                disciplinaSelecionada === index && styles.botaoTextoAtivo,
-              ]}
-            >
-              {obterSiglaDisciplina(item.nome)}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    );
-  }
-
-  function renderSeletorTrimestre() {
-    return (
-      <View style={styles.trimestres}>
-        {(["t1", "t2", "t3"] as Trimestre[]).map((trimestreItem) => (
-          <Pressable
-            key={trimestreItem}
-            style={[
-              styles.trimestreBotao,
-              trimestreSelecionado === trimestreItem && styles.botaoAtivo,
-            ]}
-            onPress={() => setTrimestreSelecionado(trimestreItem)}
-          >
-            <Text
-              style={[
-                styles.botaoTexto,
-                trimestreSelecionado === trimestreItem &&
-                  styles.botaoTextoAtivo,
-              ]}
-            >
-              {tituloTrimestre(trimestreItem)}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    );
-  }
   function renderSelecaoAluno() {
     return (
       <>
@@ -2342,13 +2255,14 @@ export default function HomeScreen() {
 
         <ScrollView
           horizontal
-          pagingEnabled
+          snapToInterval={larguraSlideAluno}
+          decelerationRate="fast"
+          disableIntervalMomentum
           showsHorizontalScrollIndicator={false}
           style={styles.carrosselAlunosNovo}
           onMomentumScrollEnd={(evento) => {
-            const largura = evento.nativeEvent.layoutMeasurement.width;
             const posicao = evento.nativeEvent.contentOffset.x;
-            const novoIndice = Math.round(posicao / largura);
+            const novoIndice = Math.round(posicao / larguraSlideAluno);
 
             if (filhos[novoIndice]) {
               setFilhoSelecionado(novoIndice);
@@ -2375,7 +2289,10 @@ export default function HomeScreen() {
             const classificacaoAluno = obterClassificacao(mediaAluno);
 
             return (
-              <View key={item.id} style={styles.slideAlunoNovo}>
+              <View
+                key={item.id}
+                style={[styles.slideAlunoNovo, { width: larguraSlideAluno }]}
+              >
                 <Pressable
                   style={[
                     styles.cardEscolhaAlunoNovo,
@@ -2474,7 +2391,7 @@ export default function HomeScreen() {
             <View>
               <Text style={styles.tituloSecaoNovo}>Visão geral</Text>
               <Text style={styles.infoInicioNovo}>
-                A média geral considera todas as notas periódicas já lançadas.
+                A média geral considera igualmente as disciplinas que já possuem notas.
               </Text>
             </View>
 
@@ -3468,7 +3385,10 @@ export default function HomeScreen() {
     <View style={styles.appShellNovo}>
       <ScrollView
         ref={scrollPrincipalRef}
-        contentContainerStyle={styles.containerComMenuInferiorNovo}
+        contentContainerStyle={[
+          styles.containerComMenuInferiorNovo,
+          { width: larguraConteudo, alignSelf: "center" },
+        ]}
       >
         {abaAtiva !== "selecao" && renderCabecalho()}
 
@@ -3912,8 +3832,6 @@ const styles = StyleSheet.create({
 
   menuInferiorNovo: {
     position: "absolute",
-    left: 16,
-    right: 16,
     bottom: 16,
     height: 82,
     backgroundColor: "#ffffff",
@@ -5003,9 +4921,7 @@ const styles = StyleSheet.create({
   },
 
   slideAlunoNovo: {
-    width: 330,
-    paddingLeft: 20,
-    paddingRight: 10,
+    paddingHorizontal: 10,
   },
 
   cardEscolhaAlunoNovo: {
@@ -5651,7 +5567,6 @@ const styles = StyleSheet.create({
     color: "#166534",
   },
   resultadoGrande: { fontSize: 27, fontWeight: "bold" },
-  situacao: { marginTop: 8, fontSize: 19, fontWeight: "bold" },
   info: { marginTop: 10, fontSize: 16, color: "#374151", lineHeight: 22 },
   infoCompacta: {
     marginTop: 3,
