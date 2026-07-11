@@ -1019,6 +1019,20 @@ export default function HomeScreen() {
   const classificacaoGeral = obterClassificacao(mediaGeralAluno);
   const classificacaoDisciplina = obterClassificacao(mediaFinalParcial);
   const resumoDisciplinas = calcularResumoDisciplinas(filho);
+  const disciplinasComNotas = resumoDisciplinas.filter(
+    (item) => item.media !== null,
+  );
+  const disciplinasEmAtencao = disciplinasComNotas.filter(
+    (item) => (item.media ?? 10) < 6,
+  );
+  const melhorDesempenho = disciplinasComNotas.reduce<
+    (typeof resumoDisciplinas)[number] | null
+  >((melhor, item) => {
+    if (!melhor) return item;
+    return (item.media ?? 0) > (melhor.media ?? 0) ? item : melhor;
+  }, null);
+  const disciplinasSemNotas =
+    filho.disciplinas.length - disciplinasComNotas.length;
   const npDesejadaNumero = textoParaNumero(npDesejada) ?? 8.0;
   const nomeAP = prefixoAP(trimestreSelecionado);
   const scrollPrincipalRef = useRef<ScrollView>(null);
@@ -2444,19 +2458,160 @@ export default function HomeScreen() {
   function renderInicio() {
     return (
       <>
-        <View style={styles.cardInicioNovo}>
+        <View style={styles.cardCentralAlunoNovo}>
           <View style={styles.cardTopoLinhaNovo}>
-            <View>
-              <Text style={styles.tituloSecaoNovo}>Visão geral</Text>
+            <View style={styles.centralAlunoCabecalhoNovo}>
+              <Text style={styles.labelHeroNovo}>Central do aluno</Text>
+              <Text style={styles.tituloCentralAlunoNovo}>
+                Acompanhamento de {filho.nome}
+              </Text>
               <Text style={styles.infoInicioNovo}>
-                A média geral considera igualmente as disciplinas que já possuem
-                notas.
+                Resumo do ano letivo {anoLetivoSelecionado}, com alertas e
+                atalhos para as principais ações.
               </Text>
             </View>
 
             <Text style={styles.badgeSerieNovo}>
               {obterRotuloSerie(filho.serie)}
             </Text>
+          </View>
+
+          <View style={styles.gradeIndicadoresCentralNovo}>
+            <View style={styles.cardIndicadorCentralNovo}>
+              <Text style={styles.indicadorCentralLabelNovo}>Média geral</Text>
+              <Text
+                style={[
+                  styles.indicadorCentralValorNovo,
+                  { color: classificacaoGeral.corTexto },
+                ]}
+              >
+                {mostrarNota(mediaGeralAluno)}
+              </Text>
+              <Text style={styles.indicadorCentralSubNovo}>
+                {classificacaoGeral.titulo}
+              </Text>
+            </View>
+
+            <View style={styles.cardIndicadorCentralNovo}>
+              <Text style={styles.indicadorCentralLabelNovo}>Com notas</Text>
+              <Text style={styles.indicadorCentralValorNovo}>
+                {disciplinasComNotas.length}
+              </Text>
+              <Text style={styles.indicadorCentralSubNovo}>
+                de {filho.disciplinas.length} disciplinas
+              </Text>
+            </View>
+
+            <View style={styles.cardIndicadorCentralNovo}>
+              <Text style={styles.indicadorCentralLabelNovo}>Em atenção</Text>
+              <Text
+                style={[
+                  styles.indicadorCentralValorNovo,
+                  disciplinasEmAtencao.length > 0 &&
+                    styles.valorAtencaoCentralNovo,
+                ]}
+              >
+                {disciplinasEmAtencao.length}
+              </Text>
+              <Text style={styles.indicadorCentralSubNovo}>abaixo de 6,0</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.gradeDestaquesCentralNovo}>
+          <View style={styles.cardDestaqueCentralNovo}>
+            <Text style={styles.labelHeroNovo}>Melhor desempenho</Text>
+            {melhorDesempenho ? (
+              <>
+                <Text style={styles.destaqueCentralTituloNovo}>
+                  {melhorDesempenho.nome}
+                </Text>
+                <Text style={styles.destaqueCentralValorNovo}>
+                  {mostrarNota(melhorDesempenho.media)}
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.destaqueCentralVazioNovo}>
+                Lance as primeiras notas para visualizar o destaque.
+              </Text>
+            )}
+          </View>
+
+          <View
+            style={[
+              styles.cardDestaqueCentralNovo,
+              disciplinasEmAtencao.length > 0 && styles.cardAtencaoCentralNovo,
+            ]}
+          >
+            <Text style={styles.labelHeroNovo}>Prioridade de estudo</Text>
+            {disciplinasEmAtencao.length > 0 ? (
+              <>
+                <Text style={styles.destaqueCentralTituloNovo}>
+                  {disciplinasEmAtencao[0].nome}
+                </Text>
+                <Text style={styles.destaqueCentralValorAtencaoNovo}>
+                  {mostrarNota(disciplinasEmAtencao[0].media)}
+                </Text>
+                {disciplinasEmAtencao.length > 1 ? (
+                  <Text style={styles.destaqueCentralVazioNovo}>
+                    + {disciplinasEmAtencao.length - 1} disciplina(s) em atenção
+                  </Text>
+                ) : null}
+              </>
+            ) : (
+              <Text style={styles.destaqueCentralVazioNovo}>
+                Nenhuma disciplina abaixo da média mínima.
+              </Text>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.cardAtalhosCentralNovo}>
+          <Text style={styles.tituloSecaoNovo}>Ações rápidas</Text>
+          <Text style={styles.infoAtalhosCentralNovo}>
+            Continue o acompanhamento sem procurar pelas telas.
+          </Text>
+
+          <View style={styles.gradeAtalhosCentralNovo}>
+            <Pressable
+              style={styles.botaoAtalhoCentralNovo}
+              onPress={() => setAbaAtiva("notas")}
+            >
+              <Text style={styles.iconeAtalhoCentralNovo}>★</Text>
+              <Text style={styles.tituloAtalhoCentralNovo}>Lançar notas</Text>
+              <Text style={styles.infoAtalhoCentralNovo}>
+                Atualize AP, GIP, AE e AR.
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.botaoAtalhoCentralNovo}
+              onPress={() => setAbaAtiva("planejamento")}
+            >
+              <Text style={styles.iconeAtalhoCentralNovo}>□</Text>
+              <Text style={styles.tituloAtalhoCentralNovo}>Planejar AE</Text>
+              <Text style={styles.infoAtalhoCentralNovo}>
+                Calcule a nota necessária.
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.cardInicioNovo}>
+          <View style={styles.cardTopoLinhaNovo}>
+            <View>
+              <Text style={styles.tituloSecaoNovo}>Disciplinas</Text>
+              <Text style={styles.infoInicioNovo}>
+                Toque em um cartão para abrir diretamente as notas da
+                disciplina.
+              </Text>
+            </View>
+
+            {disciplinasSemNotas > 0 ? (
+              <Text style={styles.badgePendenteCentralNovo}>
+                {disciplinasSemNotas} pendente(s)
+              </Text>
+            ) : null}
           </View>
         </View>
 
@@ -3795,6 +3950,189 @@ const styles = StyleSheet.create({
   menuTextoAtivoNovo: {
     color: "#0037b0",
   },
+  cardCentralAlunoNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 26,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+    elevation: 3,
+  },
+
+  centralAlunoCabecalhoNovo: {
+    flex: 1,
+  },
+
+  tituloCentralAlunoNovo: {
+    marginTop: 6,
+    fontSize: 25,
+    color: "#111827",
+    fontWeight: "bold",
+  },
+
+  gradeIndicadoresCentralNovo: {
+    marginTop: 18,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+
+  cardIndicadorCentralNovo: {
+    flexGrow: 1,
+    flexBasis: 150,
+    minHeight: 112,
+    backgroundColor: "#f8fafc",
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    justifyContent: "space-between",
+  },
+
+  indicadorCentralLabelNovo: {
+    fontSize: 11,
+    color: "#64748b",
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+
+  indicadorCentralValorNovo: {
+    marginTop: 5,
+    fontSize: 34,
+    color: "#0037b0",
+    fontWeight: "bold",
+  },
+
+  valorAtencaoCentralNovo: {
+    color: "#b91c1c",
+  },
+
+  indicadorCentralSubNovo: {
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+
+  gradeDestaquesCentralNovo: {
+    marginTop: 14,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+
+  cardDestaqueCentralNovo: {
+    flexGrow: 1,
+    flexBasis: 260,
+    minHeight: 150,
+    backgroundColor: "#ecfdf5",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+  },
+
+  cardAtencaoCentralNovo: {
+    backgroundColor: "#fef2f2",
+    borderColor: "#fecaca",
+  },
+
+  destaqueCentralTituloNovo: {
+    marginTop: 10,
+    fontSize: 20,
+    color: "#111827",
+    fontWeight: "bold",
+  },
+
+  destaqueCentralValorNovo: {
+    marginTop: 8,
+    fontSize: 38,
+    color: "#166534",
+    fontWeight: "bold",
+  },
+
+  destaqueCentralValorAtencaoNovo: {
+    marginTop: 8,
+    fontSize: 38,
+    color: "#b91c1c",
+    fontWeight: "bold",
+  },
+
+  destaqueCentralVazioNovo: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#64748b",
+    lineHeight: 20,
+    fontWeight: "600",
+  },
+
+  cardAtalhosCentralNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 2,
+  },
+
+  infoAtalhosCentralNovo: {
+    marginTop: 5,
+    fontSize: 13,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+
+  gradeAtalhosCentralNovo: {
+    marginTop: 14,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+
+  botaoAtalhoCentralNovo: {
+    flexGrow: 1,
+    flexBasis: 220,
+    minHeight: 128,
+    backgroundColor: "#eff6ff",
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+
+  iconeAtalhoCentralNovo: {
+    fontSize: 24,
+    color: "#0037b0",
+    fontWeight: "bold",
+  },
+
+  tituloAtalhoCentralNovo: {
+    marginTop: 7,
+    fontSize: 17,
+    color: "#0037b0",
+    fontWeight: "bold",
+  },
+
+  infoAtalhoCentralNovo: {
+    marginTop: 4,
+    fontSize: 13,
+    color: "#475569",
+    lineHeight: 18,
+    fontWeight: "600",
+  },
+
+  badgePendenteCentralNovo: {
+    fontSize: 11,
+    color: "#92400e",
+    fontWeight: "bold",
+    backgroundColor: "#fffbeb",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+
   cardInicioNovo: {
     marginTop: 18,
     backgroundColor: "#ffffff",
