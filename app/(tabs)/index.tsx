@@ -87,7 +87,6 @@ type BackupMediaCMB = {
 const CHAVE_STORAGE = "media-escolar-dados";
 const CHAVE_DEVICE_ID = "media-cmb-device-id";
 const CHAVE_LICENCA_LOCAL = "media-cmb-licenca-local";
-const LIMITE_FILHOS = 5;
 
 const ANO_LETIVO_PADRAO = String(new Date().getFullYear());
 
@@ -847,10 +846,6 @@ async function salvarNovoAnoLetivo() {
   void salvarFilhosNoDispositivo(novosFilhos);
 }
   function abrirNovoFilho() {
-    if (filhos.length >= LIMITE_FILHOS) {
-      setMensagem("Limite de 5 alunos atingido.");
-      return;
-    }
     setMensagem("");
     setModoFormulario("novo");
     setNomeFormulario("");
@@ -887,11 +882,7 @@ async function salvarNovoAnoLetivo() {
     }
 
     if (modoFormulario === "novo") {
-      if (filhos.length >= LIMITE_FILHOS) {
-        setMensagem("Limite de 5 alunos atingido.");
-        return;
-      }
-            const novoFilho = criarFilho(nomeLimpo, serieFormulario, turmaFormulario);
+      const novoFilho = criarFilho(nomeLimpo, serieFormulario, turmaFormulario);
       const filhosAtualizados = [...filhos, novoFilho];
 
       setFilhos(filhosAtualizados);
@@ -1119,7 +1110,6 @@ function importarBackup() {
           }
 
           const filhosNormalizados = dados.filhos
-            .slice(0, LIMITE_FILHOS)
             .map((item: any, index: number) => normalizarFilho(item, index));
 
           if (!filhosNormalizados.length) {
@@ -2353,27 +2343,18 @@ function renderSelecaoAluno() {
             <Text style={styles.labelHeroNovo}>Perfil</Text>
             <Text style={styles.tituloAlunosNovo}>Configurações do app</Text>
             <Text style={styles.infoAlunosNovo}>
-            Meus filhos, backup, licença e informações do Média CMB
+            Alunos, backup, licença e informações do Média CMB
           </Text>
           </View>
           <View style={styles.cardSecaoPerfilNovo}>
   <View>
     <Text style={styles.labelHeroNovo}>Cadastro</Text>
-    <Text style={styles.tituloSecaoPerfilNovo}>Meus filhos (alunos)</Text>
+    <Text style={styles.tituloSecaoPerfilNovo}>Alunos</Text>
     <Text style={styles.infoSecaoPerfilNovo}>
-      {filhos.length}/{LIMITE_FILHOS} alunos cadastrados neste dispositivo.
+      {filhos.length} {filhos.length === 1 ? "aluno cadastrado" : "alunos cadastrados"} neste dispositivo.
     </Text>
   </View>
 </View>
-          <View style={styles.barraLimiteAlunosNovo}>
-            <View
-              style={[
-                styles.barraLimitePreenchidaNovo,
-                { width: `${Math.min((filhos.length / LIMITE_FILHOS) * 100, 100)}%` },
-              ]}
-            />
-          </View>
-
           <Pressable style={styles.botaoAdicionarAlunoNovo} onPress={abrirNovoFilho}>
             <Text style={styles.botaoAdicionarAlunoTextoNovo}>＋ Adicionar aluno</Text>
           </Pressable>
@@ -2495,13 +2476,11 @@ function renderSelecaoAluno() {
           })}
         </View>
 
-        {filhos.length < LIMITE_FILHOS ? (
-          <Pressable style={styles.cardVagaAlunoNovo} onPress={abrirNovoFilho}>
-            <Text style={styles.iconeVagaAlunoNovo}>＋</Text>
-            <Text style={styles.tituloVagaAlunoNovo}>Vaga disponível</Text>
-            <Text style={styles.infoVagaAlunoNovo}>Limite: 5 alunos</Text>
-          </Pressable>
-        ) : null}
+        <Pressable style={styles.cardVagaAlunoNovo} onPress={abrirNovoFilho}>
+          <Text style={styles.iconeVagaAlunoNovo}>＋</Text>
+          <Text style={styles.tituloVagaAlunoNovo}>Adicionar outro aluno</Text>
+          <Text style={styles.infoVagaAlunoNovo}>Cadastre quantos alunos desejar</Text>
+        </Pressable>
 
         <View style={styles.cardBackupNovo}>
           <Text style={styles.labelHeroNovo}>Dados e segurança</Text>
