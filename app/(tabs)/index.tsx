@@ -256,13 +256,59 @@ function migrarSerieAntiga(serie: unknown): SerieEscolar {
   return "7EF";
 }
 
+function normalizarEntradaNota(valor: string): string {
+  const original = String(valor ?? "");
+  if (!original.trim()) return "";
+
+  const usaVirgula = original.includes(",");
+  const separadorSaida = usaVirgula ? "," : ".";
+
+  let limpo = original
+    .replace(",", ".")
+    .replace(/[^0-9.]/g, "");
+
+  const primeiroPonto = limpo.indexOf(".");
+  if (primeiroPonto >= 0) {
+    limpo =
+      limpo.slice(0, primeiroPonto + 1) +
+      limpo.slice(primeiroPonto + 1).replace(/\./g, "");
+  }
+
+  const possuiDecimal = limpo.includes(".");
+  let [parteInteira = "", parteDecimal = ""] = limpo.split(".");
+
+  if (parteInteira === "" && possuiDecimal) {
+    parteInteira = "0";
+  }
+
+  parteInteira = parteInteira.replace(/^0+(?=\d)/, "");
+
+  const numeroInteiro = Number(parteInteira || "0");
+
+  if (numeroInteiro > 10) {
+    return "10";
+  }
+
+  parteDecimal = parteDecimal.slice(0, 2);
+
+  if (numeroInteiro === 10) {
+    return "10";
+  }
+
+  if (possuiDecimal) {
+    return `${parteInteira || "0"}${separadorSaida}${parteDecimal}`;
+  }
+
+  return parteInteira;
+}
+
 function normalizarTrimestre(valor: any): NotasTrimestre {
   return {
-    ap1: valor?.ap1 ?? "",
-    ap2: valor?.ap2 ?? "",
-    gip: valor?.gip ?? "",
-    ae: valor?.ae ?? "",
-    ar: valor?.ar ?? "",
+    ap1: normalizarEntradaNota(String(valor?.ap1 ?? "")),
+    ap2: normalizarEntradaNota(String(valor?.ap2 ?? "")),
+    gip: normalizarEntradaNota(String(valor?.gip ?? "")),
+    ae: normalizarEntradaNota(String(valor?.ae ?? "")),
+    ar: normalizarEntradaNota(String(valor?.ar ?? "")),
   };
 }
 
@@ -485,7 +531,7 @@ function calcularNecessidadeFinal(disciplina: Disciplina, mediaMinima: number) {
   if (precisaPorTrimestre > 10)
     return "Precisaria de mais de 10 nos trimestres restantes.";
 
-  return `Para fechar o ano com média 6,0: precisa de ${precisaPorTrimestre.toFixed(1)} em cada trimestre restante.`;
+  return `Para fechar o ano com média ${mediaMinima.toFixed(1).replace(".", ",")}: precisa de ${precisaPorTrimestre.toFixed(1)} em cada trimestre restante.`;
 }
 
 function calcularAENecessaria(
@@ -599,29 +645,14 @@ function obterSiglaDisciplina(nome: string) {
 }
 
 function calcularMediaGeralAluno(filho: Filho): number | null {
-  const notas: number[] = [];
+  const mediasDisciplinas = filho.disciplinas
+    .map((disciplina) => calcularMediaFinalParcial(disciplina))
+    .filter((media): media is number => media !== null);
 
-  filho.disciplinas.forEach((disciplina) => {
-    const notaT1 = calcularNotaConsiderada(
-      disciplina,
-      disciplina.trimestres.t1,
-    );
-    const notaT2 = calcularNotaConsiderada(
-      disciplina,
-      disciplina.trimestres.t2,
-    );
-    const notaT3 = calcularNotaConsiderada(
-      disciplina,
-      disciplina.trimestres.t3,
-    );
-    if (notaT1 !== null) notas.push(notaT1);
-    if (notaT2 !== null) notas.push(notaT2);
-    if (notaT3 !== null) notas.push(notaT3);
-  });
+  if (mediasDisciplinas.length === 0) return null;
 
-  if (notas.length === 0) return null;
-  const soma = notas.reduce((total, nota) => total + nota, 0);
-  return arredondar(soma / notas.length);
+  const soma = mediasDisciplinas.reduce((total, media) => total + media, 0);
+  return arredondar(soma / mediasDisciplinas.length);
 }
 
 function obterIniciais(nome: string) {
@@ -854,13 +885,13 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    async function salvarDados() {
-      if (dadosCarregados) {
-        await salvarFilhosNoDispositivo(filhos);
-      }
-    }
+    if (!dadosCarregados) return;
 
-    salvarDados();
+    const temporizadorSalvamento = setTimeout(() => {
+      void salvarFilhosNoDispositivo(filhos);
+    }, 500);
+
+    return () => clearTimeout(temporizadorSalvamento);
   }, [filhos, dadosCarregados]);
 
   useEffect(() => {
@@ -956,7 +987,6 @@ export default function HomeScreen() {
     );
 
     setFilhos(filhosAtualizados);
-    await salvarFilhosNoDispositivo(filhosAtualizados);
 
     setAnoLetivoSelecionado(ano);
     setDisciplinaSelecionada(0);
@@ -1015,7 +1045,6 @@ export default function HomeScreen() {
     });
 
     setFilhos(filhosAtualizados);
-    await salvarFilhosNoDispositivo(filhosAtualizados);
 
     setAnoLetivoSelecionado(anoLimpo);
     setDisciplinaSelecionada(0);
@@ -1051,6 +1080,8 @@ export default function HomeScreen() {
     }
   }
   function atualizarCampo(campo: keyof NotasTrimestre, valor: string) {
+    const valorNormalizado = normalizarEntradaNota(valor);
+
     const novosFilhos = filhos.map((filhoAtual, indexFilho) => {
       if (indexFilho !== filhoSelecionado) return filhoAtual;
 
@@ -1066,7 +1097,7 @@ export default function HomeScreen() {
               ...disc.trimestres,
               [trimestreSelecionado]: {
                 ...disc.trimestres[trimestreSelecionado],
-                [campo]: valor,
+                [campo]: valorNormalizado,
               },
             },
           };
@@ -1092,7 +1123,6 @@ export default function HomeScreen() {
     });
 
     setFilhos(novosFilhos);
-    void salvarFilhosNoDispositivo(novosFilhos);
   }
   function abrirNovoFilho() {
     setMensagem("");
@@ -1135,8 +1165,7 @@ export default function HomeScreen() {
       const filhosAtualizados = [...filhos, novoFilho];
 
       setFilhos(filhosAtualizados);
-      await salvarFilhosNoDispositivo(filhosAtualizados);
-      setFilhoSelecionado(filhos.length);
+        setFilhoSelecionado(filhos.length);
       setDisciplinaSelecionada(0);
       setTrimestreSelecionado("t1");
       setModoFormulario(null);
@@ -1197,8 +1226,7 @@ export default function HomeScreen() {
         };
       });
       setFilhos(filhosAtualizados);
-      await salvarFilhosNoDispositivo(filhosAtualizados);
-
+  
       setDisciplinaSelecionada(0);
       setTrimestreSelecionado("t1");
       setModoFormulario(null);
@@ -1285,8 +1313,7 @@ export default function HomeScreen() {
       });
 
       setFilhos(filhosAtualizados);
-      await salvarFilhosNoDispositivo(filhosAtualizados);
-
+  
       setMensagem("Foto atualizada e salva automaticamente.");
     } catch (erro) {
       console.log("Erro ao escolher foto:", erro);
@@ -1302,7 +1329,6 @@ export default function HomeScreen() {
     });
 
     setFilhos(filhosAtualizados);
-    await salvarFilhosNoDispositivo(filhosAtualizados);
     setMensagem("Foto removida.");
   }
   async function exportarBackup() {
@@ -2737,7 +2763,9 @@ export default function HomeScreen() {
                 <TextInput
                   style={styles.inputNpDesejadaNovo}
                   value={npDesejada}
-                  onChangeText={setNpDesejada}
+                  onChangeText={(valor) =>
+                    setNpDesejada(normalizarEntradaNota(valor))
+                  }
                   keyboardType="decimal-pad"
                   placeholder="Ex.: 8,0"
                   placeholderTextColor="#94a3b8"
