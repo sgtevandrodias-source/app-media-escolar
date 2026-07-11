@@ -77,6 +77,7 @@ type LicencaLocal = {
   chave: string;
   deviceId: string;
   ativadaEm: string;
+  ultimaValidacaoEm?: string;
 };
 type BackupMediaCMB = {
   app: "MEDIA_CMB";
@@ -88,6 +89,11 @@ type BackupMediaCMB = {
 const CHAVE_STORAGE = "media-escolar-dados";
 const CHAVE_DEVICE_ID = "media-cmb-device-id";
 const CHAVE_LICENCA_LOCAL = "media-cmb-licenca-local";
+const API_BASE_URL = (
+  process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://mediacmb.pages.dev"
+).replace(/\/+$/, "");
+const API_ATIVAR_LICENCA = `${API_BASE_URL}/api/ativar`;
+const TEMPO_LIMITE_API_MS = 15000;
 const VERSAO_BACKUP_ATUAL = 1;
 const TAMANHO_MAXIMO_BACKUP_BYTES = 10 * 1024 * 1024;
 const TAMANHO_MAXIMO_FOTO_BYTES = 350 * 1024;
@@ -691,6 +697,49 @@ function gerarDeviceId() {
 function normalizarChave(valor: string) {
   return valor.trim().toUpperCase().replace(/\s+/g, "");
 }
+
+function ocultarChaveLicenca(chave: string) {
+  const chaveNormalizada = normalizarChave(chave);
+  if (!chaveNormalizada) return "Não informada";
+  if (chaveNormalizada.length <= 8) return `${chaveNormalizada.slice(0, 2)}••••`;
+  return `${chaveNormalizada.slice(0, 4)}••••${chaveNormalizada.slice(-4)}`;
+}
+
+function formatarDataHora(valor?: string) {
+  if (!valor) return "Não registrada";
+
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) return "Não registrada";
+
+  return data.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function obterNomePlataforma() {
+  if (Platform.OS === "web") return "Navegador / PWA";
+  if (Platform.OS === "android") return "Android";
+  if (Platform.OS === "ios") return "iPhone / iPad";
+  return Platform.OS;
+}
+
+function mensagemErroAtivacao(status: number, resultado: any) {
+  const mensagemServidor = String(resultado?.mensagem ?? "").trim();
+  if (mensagemServidor) return mensagemServidor;
+
+  if (status === 400) return "Confira a chave informada e tente novamente.";
+  if (status === 401 || status === 403) return "Esta chave não está autorizada.";
+  if (status === 404) return "Serviço de ativação não encontrado. Atualize o app e tente novamente.";
+  if (status === 409) return "Esta chave atingiu o limite de dispositivos autorizados.";
+  if (status === 429) return "Muitas tentativas em sequência. Aguarde um pouco e tente novamente.";
+  if (status >= 500) return "O servidor de licenças está temporariamente indisponível.";
+
+  return "Não foi possível ativar esta chave.";
+}
 function gerarNomeArquivoBackup() {
   const agora = new Date();
   const ano = agora.getFullYear();
@@ -793,6 +842,7 @@ export default function HomeScreen() {
   );
   const [licencaCarregada, setLicencaCarregada] = useState(false);
   const [licencaAtiva, setLicencaAtiva] = useState(false);
+  const [dadosLicencaLocal, setDadosLicencaLocal] = useState<LicencaLocal | null>(null);
   const [deviceId, setDeviceId] = useState("");
   const [chaveAtivacao, setChaveAtivacao] = useState("");
   const [mensagemLicenca, setMensagemLicenca] = useState("");
@@ -825,6 +875,7 @@ export default function HomeScreen() {
 
           if (dadosLicenca?.ativa && dadosLicenca?.deviceId === idDispositivo) {
             setLicencaAtiva(true);
+            setDadosLicencaLocal(dadosLicenca);
             setChaveAtivacao(dadosLicenca.chave ?? "");
           }
         }
@@ -1587,51 +1638,82 @@ export default function HomeScreen() {
       setMensagemLicenca("Validando chave de acesso...");
 
       if (__DEV__ && chave === "EVANDRO-TESTE-LOCAL") {
+        const agora = new Date().toISOString();
         const licencaLocal: LicencaLocal = {
           ativa: true,
           chave,
           deviceId,
-          ativadaEm: new Date().toISOString(),
+          ativadaEm: agora,
+          ultimaValidacaoEm: agora,
         };
         await AsyncStorage.setItem(
           CHAVE_LICENCA_LOCAL,
           JSON.stringify(licencaLocal),
         );
+        setDadosLicencaLocal(licencaLocal);
         setLicencaAtiva(true);
         setMensagemLicenca("Licença local de teste ativada.");
         return;
       }
 
-      const resposta = await fetch("/api/ativar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chave, deviceId }),
-      });
+      const controlador = new AbortController();
+      const temporizador = setTimeout(
+        () => controlador.abort(),
+        TEMPO_LIMITE_API_MS,
+      );
 
-      const resultado = await resposta.json();
+      let resposta: Response;
+
+      try {
+        resposta = await fetch(API_ATIVAR_LICENCA, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chave, deviceId }),
+          signal: controlador.signal,
+        });
+      } finally {
+        clearTimeout(temporizador);
+      }
+
+      let resultado: any = null;
+      try {
+        resultado = await resposta.json();
+      } catch {
+        resultado = null;
+      }
 
       if (!resposta.ok || !resultado?.ok) {
-        setMensagemLicenca(resultado?.mensagem ?? "Chave não autorizada.");
+        setMensagemLicenca(mensagemErroAtivacao(resposta.status, resultado));
         return;
       }
 
+      const agora = new Date().toISOString();
       const licencaLocal: LicencaLocal = {
         ativa: true,
         chave,
         deviceId,
-        ativadaEm: new Date().toISOString(),
+        ativadaEm: agora,
+        ultimaValidacaoEm: agora,
       };
       await AsyncStorage.setItem(
         CHAVE_LICENCA_LOCAL,
         JSON.stringify(licencaLocal),
       );
+      setDadosLicencaLocal(licencaLocal);
       setLicencaAtiva(true);
       setMensagemLicenca(resultado?.mensagem ?? "Licença ativada com sucesso.");
-    } catch (erro) {
+    } catch (erro: any) {
       console.log("Erro ao ativar licença:", erro);
-      setMensagemLicenca(
-        "Não foi possível validar a chave. Verifique a internet e tente novamente.",
-      );
+
+      if (erro?.name === "AbortError") {
+        setMensagemLicenca(
+          "A validação demorou mais que o esperado. Verifique a conexão e tente novamente.",
+        );
+      } else {
+        setMensagemLicenca(
+          "Não foi possível acessar o servidor de licenças. Verifique a internet e tente novamente.",
+        );
+      }
     } finally {
       setValidandoLicenca(false);
     }
@@ -3210,6 +3292,39 @@ export default function HomeScreen() {
             <Text style={styles.statusLicencaPerfilTextoNovo}>
               Licença ativa
             </Text>
+          </View>
+
+          <View style={styles.caixaDetalhesLicencaPerfilNovo}>
+            <View style={styles.linhaDetalheLicencaPerfilNovo}>
+              <Text style={styles.rotuloDetalheLicencaPerfilNovo}>Chave</Text>
+              <Text style={styles.valorDetalheLicencaPerfilNovo}>
+                {ocultarChaveLicenca(dadosLicencaLocal?.chave ?? chaveAtivacao)}
+              </Text>
+            </View>
+
+            <View style={styles.linhaDetalheLicencaPerfilNovo}>
+              <Text style={styles.rotuloDetalheLicencaPerfilNovo}>Plataforma</Text>
+              <Text style={styles.valorDetalheLicencaPerfilNovo}>
+                {obterNomePlataforma()}
+              </Text>
+            </View>
+
+            <View style={styles.linhaDetalheLicencaPerfilNovo}>
+              <Text style={styles.rotuloDetalheLicencaPerfilNovo}>Ativada em</Text>
+              <Text style={styles.valorDetalheLicencaPerfilNovo}>
+                {formatarDataHora(dadosLicencaLocal?.ativadaEm)}
+              </Text>
+            </View>
+
+            <View style={styles.linhaDetalheLicencaPerfilNovo}>
+              <Text style={styles.rotuloDetalheLicencaPerfilNovo}>Última validação</Text>
+              <Text style={styles.valorDetalheLicencaPerfilNovo}>
+                {formatarDataHora(
+                  dadosLicencaLocal?.ultimaValidacaoEm ??
+                    dadosLicencaLocal?.ativadaEm,
+                )}
+              </Text>
+            </View>
           </View>
         </View>
         <View style={styles.cardPerfilInfoNovo}>
@@ -4824,6 +4939,38 @@ const styles = StyleSheet.create({
     color: "#166534",
     fontSize: 13,
     fontWeight: "bold",
+  },
+
+  caixaDetalhesLicencaPerfilNovo: {
+    marginTop: 16,
+    backgroundColor: "#f8fafc",
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    gap: 10,
+  },
+
+  linhaDetalheLicencaPerfilNovo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+
+  rotuloDetalheLicencaPerfilNovo: {
+    flex: 1,
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "bold",
+  },
+
+  valorDetalheLicencaPerfilNovo: {
+    flex: 1.3,
+    fontSize: 12,
+    color: "#334155",
+    fontWeight: "700",
+    textAlign: "right",
   },
   cardSelecaoTopoNovo: {
     marginTop: 18,
