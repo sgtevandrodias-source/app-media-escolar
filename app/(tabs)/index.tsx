@@ -220,6 +220,12 @@ function turmaPadrao(serie: SerieEscolar) {
   return String(obterConfigSerie(serie).turmaInicial);
 }
 
+function gerarIdAluno() {
+  const momento = Date.now().toString(36);
+  const aleatorio = Math.random().toString(36).slice(2, 10);
+  return `ALUNO-${momento}-${aleatorio}`;
+}
+
 function criarFilho(
   nome = "Aluno 1",
   serie: SerieEscolar = "7EF",
@@ -228,7 +234,7 @@ function criarFilho(
   const disciplinas = criarDisciplinasPorSerie(serie);
 
   return {
-    id: String(Date.now()),
+    id: gerarIdAluno(),
     nome,
     serie,
     turma,
@@ -263,9 +269,7 @@ function normalizarEntradaNota(valor: string): string {
   const usaVirgula = original.includes(",");
   const separadorSaida = usaVirgula ? "," : ".";
 
-  let limpo = original
-    .replace(",", ".")
-    .replace(/[^0-9.]/g, "");
+  let limpo = original.replace(",", ".").replace(/[^0-9.]/g, "");
 
   const primeiroPonto = limpo.indexOf(".");
   if (primeiroPonto >= 0) {
@@ -1165,7 +1169,7 @@ export default function HomeScreen() {
       const filhosAtualizados = [...filhos, novoFilho];
 
       setFilhos(filhosAtualizados);
-        setFilhoSelecionado(filhos.length);
+      setFilhoSelecionado(filhos.length);
       setDisciplinaSelecionada(0);
       setTrimestreSelecionado("t1");
       setModoFormulario(null);
@@ -1226,7 +1230,7 @@ export default function HomeScreen() {
         };
       });
       setFilhos(filhosAtualizados);
-  
+
       setDisciplinaSelecionada(0);
       setTrimestreSelecionado("t1");
       setModoFormulario(null);
@@ -1313,7 +1317,7 @@ export default function HomeScreen() {
       });
 
       setFilhos(filhosAtualizados);
-  
+
       setMensagem("Foto atualizada e salva automaticamente.");
     } catch (erro) {
       console.log("Erro ao escolher foto:", erro);
@@ -1330,6 +1334,51 @@ export default function HomeScreen() {
 
     setFilhos(filhosAtualizados);
     setMensagem("Foto removida.");
+  }
+
+  async function excluirAluno(indexAluno: number) {
+    const aluno = filhos[indexAluno];
+
+    if (!aluno) {
+      setMensagem("Não foi possível localizar o aluno selecionado.");
+      return;
+    }
+
+    if (filhos.length === 1) {
+      setMensagem(
+        "Não é possível excluir o único aluno cadastrado. Cadastre outro aluno antes de excluir este perfil.",
+      );
+      return;
+    }
+
+    const confirmou = await confirmarAcao(
+      "Excluir aluno?",
+      `Todos os dados, notas, anos letivos e a foto de ${aluno.nome} serão removidos deste dispositivo. Essa ação não pode ser desfeita.`,
+    );
+
+    if (!confirmou) {
+      setMensagem("Exclusão cancelada. Nenhum dado foi alterado.");
+      return;
+    }
+
+    const filhosAtualizados = filhos.filter((_, index) => index !== indexAluno);
+    const novoIndice = Math.min(indexAluno, filhosAtualizados.length - 1);
+    const novoAlunoSelecionado = filhosAtualizados[novoIndice];
+    const novoAno =
+      novoAlunoSelecionado?.anoLetivoAtivo ??
+      Object.keys(novoAlunoSelecionado?.anosLetivos ?? {})
+        .sort()
+        .at(-1) ??
+      ANO_LETIVO_PADRAO;
+
+    setFilhos(filhosAtualizados);
+    setFilhoSelecionado(novoIndice);
+    setAnoLetivoSelecionado(novoAno);
+    setDisciplinaSelecionada(0);
+    setTrimestreSelecionado("t1");
+    setModoFormulario(null);
+    setPesquisaAluno("");
+    setMensagem(`${aluno.nome} foi excluído com segurança.`);
   }
   async function exportarBackup() {
     try {
@@ -3008,6 +3057,20 @@ export default function HomeScreen() {
                       Ver notas
                     </Text>
                   </Pressable>
+
+                  <Pressable
+                    style={[
+                      styles.botaoAcaoAlunoNovo,
+                      styles.botaoExcluirAlunoNovo,
+                    ]}
+                    onPress={() => {
+                      void excluirAluno(index);
+                    }}
+                  >
+                    <Text style={styles.botaoExcluirAlunoTextoNovo}>
+                      Excluir
+                    </Text>
+                  </Pressable>
                 </View>
               </Pressable>
             );
@@ -4453,6 +4516,17 @@ const styles = StyleSheet.create({
 
   botaoAcaoAlunoTextoSecNovo: {
     color: "#475569",
+    fontWeight: "bold",
+  },
+
+  botaoExcluirAlunoNovo: {
+    backgroundColor: "#fef2f2",
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+
+  botaoExcluirAlunoTextoNovo: {
+    color: "#b91c1c",
     fontWeight: "bold",
   },
 
