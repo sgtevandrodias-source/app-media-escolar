@@ -80,7 +80,7 @@ type LicencaLocal = {
 };
 type BackupMediaCMB = {
   app: "MEDIA_CMB";
-  versaoBackup: 1;
+  versaoBackup: number;
   exportadoEm: string;
   filhos: Filho[];
 };
@@ -88,6 +88,9 @@ type BackupMediaCMB = {
 const CHAVE_STORAGE = "media-escolar-dados";
 const CHAVE_DEVICE_ID = "media-cmb-device-id";
 const CHAVE_LICENCA_LOCAL = "media-cmb-licenca-local";
+const VERSAO_BACKUP_ATUAL = 1;
+const TAMANHO_MAXIMO_BACKUP_BYTES = 10 * 1024 * 1024;
+const TAMANHO_MAXIMO_FOTO_BYTES = 350 * 1024;
 
 const ANO_LETIVO_PADRAO = String(new Date().getFullYear());
 
@@ -706,6 +709,26 @@ function normalizarTextoBusca(valor: string) {
     .trim();
 }
 
+function estimarTamanhoTextoBytes(valor: string) {
+  if (typeof TextEncoder !== "undefined") {
+    return new TextEncoder().encode(valor).length;
+  }
+
+  return Math.ceil(valor.length * 1.5);
+}
+
+function validarFotoCompactada(fotoUri: string) {
+  const tamanhoEstimado = estimarTamanhoTextoBytes(fotoUri);
+
+  if (tamanhoEstimado > TAMANHO_MAXIMO_FOTO_BYTES) {
+    throw new Error(
+      "A foto ainda ficou muito grande após a compactação. Escolha uma imagem menor.",
+    );
+  }
+
+  return fotoUri;
+}
+
 function possuiNotasLancadas(disciplinas: Disciplina[]) {
   return disciplinas.some((disciplina) =>
     (["t1", "t2", "t3"] as Trimestre[]).some((trimestre) => {
@@ -1244,7 +1267,7 @@ export default function HomeScreen() {
         const img = document.createElement("img");
 
         img.onload = () => {
-          const tamanhoMaximo = 260;
+          const tamanhoMaximo = 240;
           const proporcao = Math.min(
             tamanhoMaximo / img.width,
             tamanhoMaximo / img.height,
@@ -1253,7 +1276,6 @@ export default function HomeScreen() {
 
           const largura = Math.max(1, Math.round(img.width * proporcao));
           const altura = Math.max(1, Math.round(img.height * proporcao));
-
           const canvas = document.createElement("canvas");
           canvas.width = largura;
           canvas.height = altura;
@@ -1267,8 +1289,25 @@ export default function HomeScreen() {
 
           contexto.drawImage(img, 0, 0, largura, altura);
 
-          const fotoCompactada = canvas.toDataURL("image/jpeg", 0.55);
-          resolve(fotoCompactada);
+          const qualidades = [0.55, 0.45, 0.35, 0.25];
+          let fotoCompactada = "";
+
+          for (const qualidade of qualidades) {
+            fotoCompactada = canvas.toDataURL("image/jpeg", qualidade);
+            if (
+              estimarTamanhoTextoBytes(fotoCompactada) <=
+              TAMANHO_MAXIMO_FOTO_BYTES
+            ) {
+              resolve(fotoCompactada);
+              return;
+            }
+          }
+
+          reject(
+            new Error(
+              "A foto ainda ficou muito grande após a compactação. Escolha uma imagem menor.",
+            ),
+          );
         };
 
         img.onerror = () => {
@@ -1280,7 +1319,7 @@ export default function HomeScreen() {
     }
 
     if (imagem.base64) {
-      return `data:image/jpeg;base64,${imagem.base64}`;
+      return validarFotoCompactada(`data:image/jpeg;base64,${imagem.base64}`);
     }
 
     return imagem.uri;
@@ -1322,7 +1361,9 @@ export default function HomeScreen() {
     } catch (erro) {
       console.log("Erro ao escolher foto:", erro);
       setMensagem(
-        "Não foi possível salvar a foto. Tente usar uma foto menor ou tirar um print recortado do rosto.",
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível salvar a foto. Tente usar uma imagem menor.",
       );
     }
   }
@@ -1384,7 +1425,7 @@ export default function HomeScreen() {
     try {
       const backup: BackupMediaCMB = {
         app: "MEDIA_CMB",
-        versaoBackup: 1,
+        versaoBackup: VERSAO_BACKUP_ATUAL,
         exportadoEm: new Date().toISOString(),
         filhos,
       };
@@ -1440,15 +1481,42 @@ export default function HomeScreen() {
           return;
         }
 
+        if (arquivo.size > TAMANHO_MAXIMO_BACKUP_BYTES) {
+          setMensagem(
+            "Este arquivo é grande demais para ser um backup válido do Média CMB.",
+          );
+          return;
+        }
+
         const leitor = new FileReader();
 
         leitor.onload = async () => {
           try {
             const texto = String(leitor.result ?? "");
+
+            if (estimarTamanhoTextoBytes(texto) > TAMANHO_MAXIMO_BACKUP_BYTES) {
+              setMensagem("O arquivo de backup excede o limite permitido.");
+              return;
+            }
+
             const dados = JSON.parse(texto);
 
             if (dados?.app !== "MEDIA_CMB" || !Array.isArray(dados?.filhos)) {
               setMensagem("Arquivo de backup inválido para o Média CMB.");
+              return;
+            }
+
+            const versaoBackup = Number(dados?.versaoBackup ?? 1);
+
+            if (!Number.isInteger(versaoBackup) || versaoBackup < 1) {
+              setMensagem("A versão deste backup é inválida.");
+              return;
+            }
+
+            if (versaoBackup > VERSAO_BACKUP_ATUAL) {
+              setMensagem(
+                "Este backup foi criado por uma versão mais nova do Média CMB. Atualize o app antes de importar.",
+              );
               return;
             }
 
@@ -1473,6 +1541,7 @@ export default function HomeScreen() {
               return;
             }
 
+            await salvarFilhosNoDispositivo(filhosNormalizados);
             setFilhos(filhosNormalizados);
             setFilhoSelecionado(0);
             setAnoLetivoSelecionado(
