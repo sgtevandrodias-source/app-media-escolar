@@ -2700,7 +2700,10 @@ export default function HomeScreen() {
             {resumoGeralAlunos.map((item, posicao) => (
               <Pressable
                 key={item.aluno.id}
-                style={styles.cardAlunoPainelNovo}
+                style={[
+                  styles.cardAlunoPainelNovo,
+                  larguraTela < 480 && styles.cardAlunoPainelCompactoNovo,
+                ]}
                 onPress={() => abrirAlunoNoPainel(item.index)}
               >
                 <View style={styles.posicaoPainelNovo}>
@@ -2728,14 +2731,26 @@ export default function HomeScreen() {
                 </View>
 
                 <View style={styles.infoAlunoPainelNovo}>
-                  <Text style={styles.nomeAlunoPainelNovo}>
+                  <Text
+                    style={styles.nomeAlunoPainelNovo}
+                    numberOfLines={2}
+                    ellipsizeMode="tail"
+                  >
                     {item.aluno.nome}
                   </Text>
-                  <Text style={styles.dadosAlunoPainelNovo}>
+                  <Text
+                    style={styles.dadosAlunoPainelNovo}
+                    numberOfLines={2}
+                    ellipsizeMode="tail"
+                  >
                     {obterRotuloSerie(item.aluno.serie)} • Turma{" "}
                     {item.aluno.turma} • {item.anoAtivo}
                   </Text>
-                  <Text style={styles.alertaAlunoPainelNovo}>
+                  <Text
+                    style={styles.alertaAlunoPainelNovo}
+                    numberOfLines={2}
+                    ellipsizeMode="tail"
+                  >
                     {item.emAtencao > 0
                       ? `${item.emAtencao} disciplina(s) abaixo de 6,0`
                       : item.disciplinasComNota > 0
@@ -2744,7 +2759,12 @@ export default function HomeScreen() {
                   </Text>
                 </View>
 
-                <View style={styles.areaMediaAlunoPainelNovo}>
+                <View
+                  style={[
+                    styles.areaMediaAlunoPainelNovo,
+                    larguraTela < 480 && styles.areaMediaAlunoPainelCompactoNovo,
+                  ]}
+                >
                   <Text
                     style={[
                       styles.mediaAlunoPainelNovo,
@@ -6966,6 +6986,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
+  cardAlunoPainelCompactoNovo: {
+    flexWrap: "wrap",
+    alignItems: "center",
+    rowGap: 10,
+  },
   posicaoPainelNovo: {
     width: 30,
     height: 30,
@@ -7016,6 +7041,17 @@ const styles = StyleSheet.create({
   areaMediaAlunoPainelNovo: {
     alignItems: "flex-end",
     minWidth: 65,
+  },
+  areaMediaAlunoPainelCompactoNovo: {
+    width: "100%",
+    minWidth: 0,
+    paddingTop: 10,
+    paddingLeft: 92,
+    borderTopWidth: 1,
+    borderTopColor: "#e2e8f0",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   mediaAlunoPainelNovo: {
     fontSize: 28,
