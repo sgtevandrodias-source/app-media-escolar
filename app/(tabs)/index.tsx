@@ -859,6 +859,7 @@ export default function HomeScreen() {
     useState(ANO_LETIVO_PADRAO);
   const [mostrarSeletorAno, setMostrarSeletorAno] = useState(false);
   const [modoNovoAno, setModoNovoAno] = useState(false);
+  const [editandoAnoExistente, setEditandoAnoExistente] = useState(false);
   const [anoNovoFormulario, setAnoNovoFormulario] = useState(
     String(Number(ANO_LETIVO_PADRAO) + 1),
   );
@@ -1208,6 +1209,7 @@ export default function HomeScreen() {
       setSerieAnoFormulario(filho.serie);
       setTurmaAnoFormulario(filho.turma);
       setModoNovoAno(true);
+      setEditandoAnoExistente(false);
       setMostrarSeletorAno(false);
       setMensagem(
         "Este ano ainda não existe para o aluno. Confirme os dados para criá-lo.",
@@ -1234,6 +1236,7 @@ export default function HomeScreen() {
     setTrimestreSelecionado("t1");
     setMostrarSeletorAno(false);
     setModoNovoAno(false);
+    setEditandoAnoExistente(false);
     setMensagem("");
   }
   function selecionarSerieNovoAno(serie: SerieEscolar) {
@@ -1292,8 +1295,70 @@ export default function HomeScreen() {
     setTrimestreSelecionado("t1");
     setMostrarSeletorAno(false);
     setModoNovoAno(false);
+    setEditandoAnoExistente(false);
     setMensagem("Ano letivo criado com notas zeradas.");
   }
+  function iniciarEdicaoAnoLetivoAtual() {
+    const dadosAtuais = obterDadosAnoLetivo(filhoBase, anoLetivoSelecionado);
+    setAnoNovoFormulario(anoLetivoSelecionado);
+    setSerieAnoFormulario(dadosAtuais.serie);
+    setTurmaAnoFormulario(dadosAtuais.turma);
+    setEditandoAnoExistente(true);
+    setModoNovoAno(true);
+    setMostrarSeletorAno(false);
+    setMensagem("");
+  }
+
+  async function salvarDadosAnoLetivoAtual() {
+    const alunoAtual = filhos[filhoSelecionado];
+    if (!alunoAtual) return;
+
+    const dadosAtuais = obterDadosAnoLetivo(alunoAtual, anoLetivoSelecionado);
+    const mudouSerie = dadosAtuais.serie !== serieAnoFormulario;
+
+    if (mudouSerie) {
+      const confirmou = await confirmarAcao(
+        "Alterar a série deste ano?",
+        `As notas de disciplinas equivalentes serão preservadas. Disciplinas que não existirem em ${obterRotuloSerie(serieAnoFormulario)} não aparecerão neste ano.`,
+      );
+      if (!confirmou) return;
+    }
+
+    const disciplinasAtualizadas = mudouSerie
+      ? normalizarDisciplinas(serieAnoFormulario, dadosAtuais.disciplinas)
+      : dadosAtuais.disciplinas;
+
+    const filhosAtualizados = filhos.map((item, index) => {
+      if (index !== filhoSelecionado) return item;
+
+      const anoAtualizado: DadosAnoLetivo = {
+        serie: serieAnoFormulario,
+        turma: turmaAnoFormulario,
+        disciplinas: disciplinasAtualizadas,
+      };
+
+      return {
+        ...item,
+        serie: serieAnoFormulario,
+        turma: turmaAnoFormulario,
+        disciplinas: disciplinasAtualizadas,
+        anoLetivoAtivo: anoLetivoSelecionado,
+        anosLetivos: {
+          ...(item.anosLetivos ?? {}),
+          [anoLetivoSelecionado]: anoAtualizado,
+        },
+      };
+    });
+
+    setFilhos(filhosAtualizados);
+    setDisciplinaSelecionada(0);
+    setModoNovoAno(false);
+    setEditandoAnoExistente(false);
+    setMensagem(
+      `Dados de ${anoLetivoSelecionado} atualizados para ${obterRotuloSerie(serieAnoFormulario)}, turma ${turmaAnoFormulario}.`,
+    );
+  }
+
   async function salvarFilhosNoDispositivo(filhosAtualizados: Filho[]) {
     const dados: DadosSalvos = {
       filhos: filhosAtualizados,
@@ -2110,6 +2175,15 @@ export default function HomeScreen() {
           </Text>
         </Pressable>
 
+        <Pressable
+          style={styles.botaoEditarAnoNovo}
+          onPress={iniciarEdicaoAnoLetivoAtual}
+        >
+          <Text style={styles.botaoEditarAnoTextoNovo}>
+            Editar série e turma de {anoLetivoSelecionado}
+          </Text>
+        </Pressable>
+
         {mostrarSeletorAno ? (
           <View style={styles.listaDropdownAnoNovo}>
             {obterAnosDisponiveis().map((ano) => (
@@ -2144,6 +2218,7 @@ export default function HomeScreen() {
               style={styles.botaoCriarAnoNovo}
               onPress={() => {
                 setModoNovoAno(true);
+                setEditandoAnoExistente(false);
                 setAnoNovoFormulario(String(Number(anoLetivoSelecionado) + 1));
                 setSerieAnoFormulario(filho.serie);
                 setTurmaAnoFormulario(turmaPadrao(filho.serie));
@@ -2158,12 +2233,17 @@ export default function HomeScreen() {
 
         {modoNovoAno ? (
           <View style={styles.formNovoAnoLetivoNovo}>
-            <Text style={styles.labelSelecaoNovo}>Novo ano letivo</Text>
+            <Text style={styles.labelSelecaoNovo}>
+              {editandoAnoExistente
+                ? `Ano letivo ${anoLetivoSelecionado}`
+                : "Novo ano letivo"}
+            </Text>
 
             <TextInput
               style={styles.inputLicenca}
               value={anoNovoFormulario}
               onChangeText={setAnoNovoFormulario}
+              editable={!editandoAnoExistente}
               keyboardType="number-pad"
               placeholder="Ex.: 2027"
               placeholderTextColor="#94a3b8"
@@ -2223,23 +2303,31 @@ export default function HomeScreen() {
 
             <View style={styles.caixaAvisoPlanejamentoNovo}>
               <Text style={styles.avisoPlanejamentoTextoNovo}>
-                O novo ano será criado com disciplinas zeradas. As notas dos
-                outros anos serão mantidas separadas.
+                {editandoAnoExistente
+                  ? "A série e a turma serão alteradas somente neste ano. As notas das disciplinas equivalentes serão preservadas."
+                  : "O novo ano será criado com disciplinas zeradas. As notas dos outros anos serão mantidas separadas."}
               </Text>
             </View>
 
             <View style={styles.botoesFormularioAlunoNovo}>
               <Pressable
                 style={styles.botaoSalvarAlunoNovo}
-                onPress={salvarNovoAnoLetivo}
+                onPress={
+                  editandoAnoExistente
+                    ? salvarDadosAnoLetivoAtual
+                    : salvarNovoAnoLetivo
+                }
               >
-                <Text style={styles.botaoSalvarAlunoTextoNovo}>Criar ano</Text>
+                <Text style={styles.botaoSalvarAlunoTextoNovo}>
+                  {editandoAnoExistente ? "Salvar alterações" : "Criar ano"}
+                </Text>
               </Pressable>
 
               <Pressable
                 style={styles.botaoCancelarAlunoNovo}
                 onPress={() => {
                   setModoNovoAno(false);
+                  setEditandoAnoExistente(false);
                   setMensagem("");
                 }}
               >
@@ -2805,6 +2893,176 @@ export default function HomeScreen() {
     );
   }
 
+  async function compartilharBoletimPdf() {
+    if (Platform.OS !== "web" || typeof window === "undefined") {
+      setMensagem(
+        "O compartilhamento do boletim está disponível na versão web/PWA do Média CMB.",
+      );
+      return;
+    }
+
+    try {
+      setMensagem("Gerando PDF para compartilhamento...");
+
+      const [{ jsPDF }, moduloAutoTable] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+      ]);
+      const autoTable = moduloAutoTable.default;
+      const documento = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+      const larguraPagina = documento.internal.pageSize.getWidth();
+      const classificacaoAluno = obterClassificacao(mediaGeralAluno);
+      const nomeArquivo = `Boletim_${filho.nome.replace(/[^a-zA-ZÀ-ÿ0-9]+/g, "_")}_${anoLetivoSelecionado}.pdf`;
+
+      documento.setFont("helvetica", "bold");
+      documento.setFontSize(18);
+      documento.text("Média CMB — Boletim escolar detalhado", 14, 15);
+      documento.setFont("helvetica", "normal");
+      documento.setFontSize(10);
+      documento.text(`Aluno: ${filho.nome}`, 14, 23);
+      documento.text(
+        `Série: ${obterRotuloSerie(filho.serie)} | Turma: ${filho.turma} | Ano letivo: ${anoLetivoSelecionado}`,
+        14,
+        29,
+      );
+      documento.text(
+        `Média geral: ${mediaGeralAluno === null ? "Pendente" : mediaGeralAluno.toFixed(1)} | Situação: ${classificacaoAluno.titulo}`,
+        14,
+        35,
+      );
+      documento.text(
+        `Emitido em ${new Date().toLocaleString("pt-BR")}`,
+        larguraPagina - 14,
+        15,
+        { align: "right" },
+      );
+
+      let yAtual = 42;
+      filho.disciplinas.forEach((disciplinaAtual, indice) => {
+        const mediaDisciplina = calcularMediaFinalParcial(disciplinaAtual);
+        const classificacao = obterClassificacao(mediaDisciplina);
+        const linhas = (["t1", "t2", "t3"] as Trimestre[]).map(
+          (trimestreAtual) => {
+            const notas = disciplinaAtual.trimestres[trimestreAtual];
+            const mediaAps = calcularMediaAP(notas);
+            const npAtual = calcularNP(disciplinaAtual, notas);
+            const nprAtual = calcularNPR(disciplinaAtual, notas);
+            const considerada = calcularNotaConsiderada(disciplinaAtual, notas);
+            return [
+              tituloTrimestre(trimestreAtual),
+              formatarValorBoletim(notas.ap1),
+              formatarValorBoletim(notas.ap2),
+              mediaAps === null ? "—" : mediaAps.toFixed(1),
+              formatarValorBoletim(notas.gip),
+              disciplinaAtual.usaAE ? formatarValorBoletim(notas.ae) : "N/A",
+              npAtual === null ? "—" : npAtual.toFixed(1),
+              formatarValorBoletim(notas.ar),
+              nprAtual === null ? "—" : nprAtual.toFixed(1),
+              considerada === null ? "—" : considerada.toFixed(1),
+            ];
+          },
+        );
+
+        if (yAtual > 165) {
+          documento.addPage();
+          yAtual = 16;
+        }
+
+        documento.setFont("helvetica", "bold");
+        documento.setFontSize(11);
+        documento.text(
+          `${disciplinaAtual.nome} — Média: ${mediaDisciplina === null ? "Pendente" : mediaDisciplina.toFixed(1)} — ${classificacao.titulo}`,
+          14,
+          yAtual,
+        );
+
+        autoTable(documento, {
+          startY: yAtual + 3,
+          head: [
+            [
+              "Trimestre",
+              "AP.1",
+              "AP.2",
+              "Média AP",
+              "GIP",
+              "AE",
+              "NP",
+              "AR",
+              "NPR",
+              "Considerada",
+            ],
+          ],
+          body: linhas,
+          margin: { left: 14, right: 14 },
+          styles: { fontSize: 7.5, cellPadding: 1.8, halign: "center" },
+          headStyles: { fillColor: [0, 55, 176] },
+          columnStyles: { 0: { halign: "left", cellWidth: 28 } },
+          pageBreak: "avoid",
+        });
+
+        const ultimaTabela = (documento as any).lastAutoTable;
+        yAtual = (ultimaTabela?.finalY ?? yAtual + 28) + 8;
+
+        if (indice === filho.disciplinas.length - 1) {
+          documento.setFont("helvetica", "normal");
+          documento.setFontSize(8);
+          documento.text(
+            "Campos não preenchidos aparecem como —. Disciplinas sem AE exibem N/A. Documento gerado localmente pelo Média CMB.",
+            14,
+            Math.min(yAtual, 195),
+          );
+        }
+      });
+
+      const blobPdf = documento.output("blob");
+      const arquivoPdf = new File([blobPdf], nomeArquivo, {
+        type: "application/pdf",
+      });
+      const navegador = navigator as Navigator & {
+        canShare?: (dados?: ShareData) => boolean;
+        share?: (dados?: ShareData) => Promise<void>;
+      };
+
+      if (
+        navegador.share &&
+        (!navegador.canShare || navegador.canShare({ files: [arquivoPdf] }))
+      ) {
+        await navegador.share({
+          title: `Boletim de ${filho.nome}`,
+          text: `Boletim detalhado de ${filho.nome} — ${anoLetivoSelecionado}`,
+          files: [arquivoPdf],
+        });
+        setMensagem("PDF compartilhado com sucesso.");
+        return;
+      }
+
+      const urlPdf = URL.createObjectURL(blobPdf);
+      const link = document.createElement("a");
+      link.href = urlPdf;
+      link.download = nomeArquivo;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(urlPdf), 30000);
+      setMensagem(
+        "Este navegador não permite compartilhar arquivos diretamente. O PDF foi baixado para você compartilhar pelo WhatsApp ou e-mail.",
+      );
+    } catch (erro: any) {
+      if (erro?.name === "AbortError") {
+        setMensagem("Compartilhamento cancelado.");
+        return;
+      }
+      console.log("Erro ao compartilhar boletim:", erro);
+      setMensagem(
+        "Não foi possível gerar o PDF compartilhável. Confirme se as dependências jspdf e jspdf-autotable foram instaladas.",
+      );
+    }
+  }
+
   function gerarBoletimDetalhado() {
     if (Platform.OS !== "web" || typeof window === "undefined") {
       setMensagem(
@@ -3149,14 +3407,27 @@ export default function HomeScreen() {
 
             <Pressable
               style={styles.botaoAtalhoCentralNovo}
+              onPress={() => void compartilharBoletimPdf()}
+            >
+              <Text style={styles.iconeAtalhoCentralNovo}>↗</Text>
+              <Text style={styles.tituloAtalhoCentralNovo}>
+                Compartilhar PDF
+              </Text>
+              <Text style={styles.infoAtalhoCentralNovo}>
+                Envie pelo WhatsApp, e-mail ou outros apps.
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.botaoAtalhoCentralNovo}
               onPress={gerarBoletimDetalhado}
             >
               <Text style={styles.iconeAtalhoCentralNovo}>▤</Text>
               <Text style={styles.tituloAtalhoCentralNovo}>
-                Boletim detalhado
+                Imprimir boletim
               </Text>
               <Text style={styles.infoAtalhoCentralNovo}>
-                Gere e salve o relatório em PDF.
+                Abra a versão para impressão ou salvar manualmente.
               </Text>
             </Pressable>
           </View>
@@ -6292,6 +6563,21 @@ const styles = StyleSheet.create({
   indicadorAlunoAtivoNovo: {
     width: 24,
     backgroundColor: "#0037b0",
+  },
+  botaoEditarAnoNovo: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    backgroundColor: "#eff6ff",
+  },
+  botaoEditarAnoTextoNovo: {
+    color: "#0037b0",
+    fontSize: 13,
+    fontWeight: "700",
   },
   botaoDropdownAnoNovo: {
     marginTop: 16,
