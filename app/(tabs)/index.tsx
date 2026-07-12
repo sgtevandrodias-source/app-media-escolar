@@ -1774,47 +1774,65 @@ export default function HomeScreen() {
   }
 
   async function compartilharBackup() {
-    try {
-      if (Platform.OS !== "web" || typeof window === "undefined") {
-        setMensagem(
-          "O compartilhamento de backup está disponível na versão web/PWA do app.",
-        );
-        return;
-      }
+    if (Platform.OS !== "web" || typeof window === "undefined") {
+      setMensagem(
+        "O compartilhamento de backup está disponível na versão web/PWA do app.",
+      );
+      return;
+    }
 
-      const { nomeArquivo, blob } = criarArquivoBackup();
-      const arquivo = new File([blob], nomeArquivo, {
-        type: "application/vnd.media-cmb.backup+json",
-      });
+    setMensagem("Preparando o backup para compartilhar...");
+
+    try {
+      const { conteudo, nomeArquivo } = criarArquivoBackup();
       const navegador = navigator as Navigator & {
         canShare?: (dados?: ShareData) => boolean;
         share?: (dados?: ShareData) => Promise<void>;
       };
 
-      if (
-        navegador.share &&
-        (!navegador.canShare || navegador.canShare({ files: [arquivo] }))
-      ) {
-        await navegador.share({
-          title: "Backup do Média CMB",
-          text: "Arquivo de backup do Média CMB. Abra-o apenas pelo próprio aplicativo para restaurar os dados.",
-          files: [arquivo],
-        });
+      // Alguns navegadores Android recusam extensões personalizadas no Web Share.
+      // Para compartilhar, usamos um JSON comum; na opção Salvar no aparelho,
+      // continuamos usando a extensão própria .mediacmb.
+      const nomeCompartilhamento = nomeArquivo.replace(/\.mediacmb$/i, ".json");
+      const arquivoCompartilhamento = new File(
+        [conteudo],
+        nomeCompartilhamento,
+        { type: "application/json" },
+      );
+      const dadosCompartilhamento: ShareData = {
+        title: "Backup do Média CMB",
+        text: "Backup do Média CMB. Para restaurar, use Perfil > Importar backup.",
+        files: [arquivoCompartilhamento],
+      };
+
+      const aceitaArquivo =
+        typeof navegador.share === "function" &&
+        (typeof navegador.canShare !== "function" ||
+          navegador.canShare(dadosCompartilhamento));
+
+      if (aceitaArquivo && navegador.share) {
+        await navegador.share(dadosCompartilhamento);
         setMensagem("Backup compartilhado com sucesso.");
         return;
       }
 
       salvarBackupNoAparelho();
-      setMensagem(
-        "Este navegador não permite compartilhar o arquivo diretamente. O backup foi salvo no aparelho.",
+      Alert.alert(
+        "Compartilhamento indisponível",
+        "Este navegador não aceita o compartilhamento direto do arquivo. O backup foi salvo no aparelho para você enviar manualmente.",
       );
     } catch (erro: any) {
       if (erro?.name === "AbortError") {
         setMensagem("Compartilhamento cancelado.");
         return;
       }
+
       console.log("Erro ao compartilhar backup:", erro);
-      setMensagem("Não foi possível compartilhar o backup agora.");
+      salvarBackupNoAparelho();
+      Alert.alert(
+        "Backup salvo",
+        "Não foi possível abrir o menu de compartilhamento. O arquivo foi salvo no aparelho para envio manual.",
+      );
     }
   }
 
