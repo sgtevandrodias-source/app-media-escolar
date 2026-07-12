@@ -942,6 +942,10 @@ export default function HomeScreen() {
   const { width: larguraTela } = useWindowDimensions();
   const larguraConteudo = Math.min(Math.max(larguraTela - 40, 280), 720);
   const larguraSlideAluno = Math.min(Math.max(larguraTela - 40, 280), 520);
+  const larguraCardAlunoInicio = Math.min(
+    Math.max(larguraTela - 72, 260),
+    500,
+  );
   const margemMenuInferior = Math.max(
     (larguraTela - Math.min(larguraTela - 32, 720)) / 2,
     16,
@@ -1204,6 +1208,7 @@ export default function HomeScreen() {
   const nomeAP = prefixoAP(trimestreSelecionado);
   const scrollPrincipalRef = useRef<ScrollView>(null);
   const carrosselAlunosRef = useRef<ScrollView>(null);
+  const carrosselInicioRef = useRef<ScrollView>(null);
 
   function atualizarCampoSimulacao(campo: keyof NotasTrimestre, valor: string) {
     setNotasSimuladas((atual) => ({
@@ -3409,45 +3414,137 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {melhorAlunoGeral ? (
-          <Pressable
-            style={styles.cardDestaqueFamiliaNovo}
-            onPress={() => abrirAlunoNoPainel(melhorAlunoGeral.index)}
-          >
-            <View style={styles.avatarDestaqueFamiliaNovo}>
-              {melhorAlunoGeral.aluno.fotoUri ? (
-                <Image
-                  source={{ uri: melhorAlunoGeral.aluno.fotoUri }}
-                  style={styles.avatarImagemDestaqueFamiliaNovo}
-                />
-              ) : (
-                <Text style={styles.avatarTextoDestaqueFamiliaNovo}>
-                  {obterIniciais(melhorAlunoGeral.aluno.nome)}
-                </Text>
-              )}
-            </View>
+        <View style={styles.cabecalhoAlunoAtivoInicioNovo}>
+          <View>
+            <Text style={styles.tituloSecaoInicioNovo}>Aluno selecionado</Text>
+            <Text style={styles.subtituloAlunoAtivoInicioNovo}>
+              Arraste para o lado para trocar de aluno.
+            </Text>
+          </View>
+          <Text style={styles.contadorAlunoAtivoInicioNovo}>
+            {Math.max(
+              1,
+              resumoGeralAlunos.findIndex(
+                (item) => item.index === filhoSelecionado,
+              ) + 1,
+            )}
+            /{resumoGeralAlunos.length}
+          </Text>
+        </View>
 
-            <View style={styles.infoDestaqueFamiliaNovo}>
-              <Text style={styles.rotuloDestaqueFamiliaNovo}>
-                Melhor desempenho
-              </Text>
-              <Text style={styles.nomeDestaqueFamiliaNovo} numberOfLines={1}>
-                {melhorAlunoGeral.aluno.nome}
-              </Text>
-              <Text style={styles.dadosDestaqueFamiliaNovo} numberOfLines={1}>
-                {obterRotuloSerie(melhorAlunoGeral.aluno.serie)} • Turma{" "}
-                {melhorAlunoGeral.aluno.turma}
-              </Text>
-            </View>
+        <ScrollView
+          ref={carrosselInicioRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={larguraCardAlunoInicio + 12}
+          decelerationRate="fast"
+          disableIntervalMomentum
+          style={styles.carrosselAlunoAtivoInicioNovo}
+          contentContainerStyle={styles.conteudoCarrosselAlunoAtivoInicioNovo}
+          onContentSizeChange={() => {
+            const posicaoSelecionada = resumoGeralAlunos.findIndex(
+              (item) => item.index === filhoSelecionado,
+            );
+            if (posicaoSelecionada >= 0) {
+              carrosselInicioRef.current?.scrollTo({
+                x: posicaoSelecionada * (larguraCardAlunoInicio + 12),
+                animated: false,
+              });
+            }
+          }}
+          onMomentumScrollEnd={(evento) => {
+            const posicao = evento.nativeEvent.contentOffset.x;
+            const indiceVisual = Math.round(
+              posicao / (larguraCardAlunoInicio + 12),
+            );
+            const itemSelecionado = resumoGeralAlunos[indiceVisual];
 
-            <View style={styles.mediaDestaqueFamiliaNovo}>
-              <Text style={styles.mediaDestaqueValorNovo}>
-                {mostrarNota(melhorAlunoGeral.media)}
-              </Text>
-              <Text style={styles.mediaDestaqueRotuloNovo}>média</Text>
-            </View>
-          </Pressable>
-        ) : null}
+            if (!itemSelecionado) return;
+
+            setFilhoSelecionado(itemSelecionado.index);
+            setAnoLetivoSelecionado(itemSelecionado.anoAtivo);
+            setDisciplinaSelecionada(0);
+            setTrimestreSelecionado("t1");
+            setMensagem(
+              `${itemSelecionado.aluno.nome} selecionado para as próximas ações.`,
+            );
+          }}
+        >
+          {resumoGeralAlunos.map((item) => {
+            const selecionado = item.index === filhoSelecionado;
+
+            return (
+              <Pressable
+                key={item.aluno.id}
+                style={[
+                  styles.cardDestaqueFamiliaNovo,
+                  { width: larguraCardAlunoInicio },
+                  selecionado && styles.cardAlunoAtivoSelecionadoInicioNovo,
+                ]}
+                onPress={() => {
+                  setFilhoSelecionado(item.index);
+                  setAnoLetivoSelecionado(item.anoAtivo);
+                  setDisciplinaSelecionada(0);
+                  setTrimestreSelecionado("t1");
+                  setMensagem(
+                    `${item.aluno.nome} selecionado para as próximas ações.`,
+                  );
+                }}
+              >
+                <View style={styles.avatarDestaqueFamiliaNovo}>
+                  {item.aluno.fotoUri ? (
+                    <Image
+                      source={{ uri: item.aluno.fotoUri }}
+                      style={styles.avatarImagemDestaqueFamiliaNovo}
+                    />
+                  ) : (
+                    <Text style={styles.avatarTextoDestaqueFamiliaNovo}>
+                      {obterIniciais(item.aluno.nome)}
+                    </Text>
+                  )}
+                </View>
+
+                <View style={styles.infoDestaqueFamiliaNovo}>
+                  <Text style={styles.rotuloDestaqueFamiliaNovo}>
+                    {selecionado ? "Aluno ativo" : "Toque para selecionar"}
+                  </Text>
+                  <Text style={styles.nomeDestaqueFamiliaNovo} numberOfLines={1}>
+                    {item.aluno.nome}
+                  </Text>
+                  <Text style={styles.dadosDestaqueFamiliaNovo} numberOfLines={1}>
+                    {obterRotuloSerie(item.aluno.serie)} • Turma{" "}
+                    {item.aluno.turma} • {item.anoAtivo}
+                  </Text>
+                </View>
+
+                <View style={styles.mediaDestaqueFamiliaNovo}>
+                  <Text
+                    style={[
+                      styles.mediaDestaqueValorNovo,
+                      { color: item.classificacao.corTexto },
+                    ]}
+                  >
+                    {mostrarNota(item.media)}
+                  </Text>
+                  <Text style={styles.mediaDestaqueRotuloNovo}>média</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        <View style={styles.indicadoresAlunoAtivoInicioNovo}>
+          {resumoGeralAlunos.map((item) => (
+            <View
+              key={item.aluno.id}
+              style={[
+                styles.indicadorAlunoAtivoInicioNovo,
+                item.index === filhoSelecionado &&
+                  styles.indicadorAlunoAtivoSelecionadoInicioNovo,
+              ]}
+            />
+          ))}
+        </View>
 
         <View style={styles.cabecalhoListaFamiliaNovo}>
           <View style={styles.titulosListaFamiliaNovo}>
@@ -7810,8 +7907,55 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
   },
-  cardDestaqueFamiliaNovo: {
+  cabecalhoAlunoAtivoInicioNovo: {
     marginTop: 22,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  subtituloAlunoAtivoInicioNovo: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  contadorAlunoAtivoInicioNovo: {
+    fontSize: 12,
+    color: "#075fab",
+    fontWeight: "bold",
+  },
+  carrosselAlunoAtivoInicioNovo: {
+    marginTop: 12,
+    marginHorizontal: -20,
+  },
+  conteudoCarrosselAlunoAtivoInicioNovo: {
+    paddingHorizontal: 20,
+    paddingRight: 32,
+  },
+  cardAlunoAtivoSelecionadoInicioNovo: {
+    borderColor: "#075fab",
+    borderWidth: 2,
+    backgroundColor: "#f8fbff",
+  },
+  indicadoresAlunoAtivoInicioNovo: {
+    marginTop: 10,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 7,
+  },
+  indicadorAlunoAtivoInicioNovo: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+    backgroundColor: "#cbd5e1",
+  },
+  indicadorAlunoAtivoSelecionadoInicioNovo: {
+    width: 22,
+    backgroundColor: "#075fab",
+  },
+  cardDestaqueFamiliaNovo: {
+    marginRight: 12,
     backgroundColor: "#ffffff",
     borderRadius: 20,
     padding: 16,
