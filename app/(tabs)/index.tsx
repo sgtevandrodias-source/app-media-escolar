@@ -2813,15 +2813,6 @@ export default function HomeScreen() {
       return;
     }
 
-    const janelaBoletim = window.open("", "_blank", "noopener,noreferrer");
-
-    if (!janelaBoletim) {
-      setMensagem(
-        "O navegador bloqueou a abertura do boletim. Permita pop-ups para o Média CMB e tente novamente.",
-      );
-      return;
-    }
-
     const dataEmissao = new Date().toLocaleString("pt-BR", {
       day: "2-digit",
       month: "2-digit",
@@ -2996,9 +2987,21 @@ export default function HomeScreen() {
 </body>
 </html>`;
 
-    janelaBoletim.document.open();
-    janelaBoletim.document.write(html);
-    janelaBoletim.document.close();
+    const arquivoHtml = new Blob([html], {
+      type: "text/html;charset=utf-8",
+    });
+    const urlBoletim = URL.createObjectURL(arquivoHtml);
+    const janelaBoletim = window.open(urlBoletim, "_blank");
+
+    if (!janelaBoletim) {
+      URL.revokeObjectURL(urlBoletim);
+      setMensagem(
+        "O navegador bloqueou a abertura do boletim. Permita pop-ups para o Média CMB e tente novamente.",
+      );
+      return;
+    }
+
+    window.setTimeout(() => URL.revokeObjectURL(urlBoletim), 60000);
     setMensagem(
       "Boletim aberto em uma nova aba. Use “Salvar como PDF / Imprimir” para gerar o arquivo.",
     );
