@@ -2745,7 +2745,7 @@ export default function HomeScreen() {
     setDisciplinaSelecionada(0);
     setTrimestreSelecionado("t1");
     setMensagem("");
-    setAbaAtiva("inicio");
+    setAbaAtiva("notas");
   }
 
   function renderPainelGeral() {
@@ -3385,26 +3385,26 @@ export default function HomeScreen() {
 
             <Pressable
               style={styles.acaoRapidaFamiliaNovo}
-              onPress={gerarBoletimDetalhado}
+              onPress={() => setAbaAtiva("notas")}
             >
-              <Text style={styles.iconeAcaoFamiliaNovo}>▤</Text>
-              <Text style={styles.textoAcaoFamiliaNovo}>Boletim</Text>
+              <Text style={styles.iconeAcaoFamiliaNovo}>★</Text>
+              <Text style={styles.textoAcaoFamiliaNovo}>Notas</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.acaoRapidaFamiliaNovo}
+              onPress={() => setAbaAtiva("planejamento")}
+            >
+              <Text style={styles.iconeAcaoFamiliaNovo}>□</Text>
+              <Text style={styles.textoAcaoFamiliaNovo}>Planejar</Text>
             </Pressable>
 
             <Pressable
               style={styles.acaoRapidaFamiliaNovo}
               onPress={() => void compartilharBoletimPdf()}
             >
-              <Text style={styles.iconeAcaoFamiliaNovo}>↗</Text>
-              <Text style={styles.textoAcaoFamiliaNovo}>Compartilhar</Text>
-            </Pressable>
-
-            <Pressable
-              style={styles.acaoRapidaFamiliaNovo}
-              onPress={() => setAbaAtiva("notas")}
-            >
-              <Text style={styles.iconeAcaoFamiliaNovo}>★</Text>
-              <Text style={styles.textoAcaoFamiliaNovo}>Notas</Text>
+              <Text style={styles.iconeAcaoFamiliaNovo}>▤</Text>
+              <Text style={styles.textoAcaoFamiliaNovo}>Boletim PDF</Text>
             </Pressable>
           </View>
         </View>
@@ -7720,21 +7720,23 @@ const styles = StyleSheet.create({
     color: "#075fab",
   },
   cardBoasVindasFamiliaNovo: {
-    backgroundColor: "#075fab",
+    backgroundColor: "#dbeafe",
     borderRadius: 24,
     padding: 22,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    elevation: 2,
   },
   saudacaoFamiliaNovo: {
     fontSize: 28,
-    color: "#ffffff",
+    color: "#0f3f75",
     fontWeight: "bold",
   },
   descricaoFamiliaNovo: {
     marginTop: 8,
     fontSize: 15,
     lineHeight: 22,
-    color: "#e0efff",
+    color: "#315b86",
     fontWeight: "600",
   },
   gradeResumoFamiliaNovo: {
@@ -7747,25 +7749,25 @@ const styles = StyleSheet.create({
     minHeight: 106,
     padding: 14,
     borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.62)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.24)",
+    borderColor: "#bfdbfe",
     justifyContent: "space-between",
   },
   rotuloResumoFamiliaNovo: {
-    color: "#dbeafe",
+    color: "#315b86",
     fontSize: 11,
     fontWeight: "bold",
     textTransform: "uppercase",
     letterSpacing: 0.6,
   },
   valorResumoFamiliaNovo: {
-    color: "#ffffff",
+    color: "#075fab",
     fontSize: 30,
     fontWeight: "bold",
   },
   subResumoFamiliaNovo: {
-    color: "#e0efff",
+    color: "#315b86",
     fontSize: 11,
     lineHeight: 15,
     fontWeight: "600",
