@@ -17,14 +17,8 @@ import {
 type Trimestre = "t1" | "t2" | "t3";
 type SerieEscolar = "6EF" | "7EF" | "8EF" | "9EF" | "1EM" | "2EM" | "3EM";
 type ModoFormulario = "novo" | "editar" | null;
-type AbaApp =
-  | "selecao"
-  | "painel"
-  | "inicio"
-  | "notas"
-  | "planejamento"
-  | "simulador"
-  | "alunos";
+type AbaApp = "inicio" | "alunos" | "notas" | "planejamento" | "perfil";
+type FerramentaPlanejamento = "ae" | "simulador";
 
 type NotasTrimestre = {
   ap1: string;
@@ -907,13 +901,15 @@ export default function HomeScreen() {
   const [notasSimuladas, setNotasSimuladas] =
     useState<NotasTrimestre>(criarTrimestre());
   const [mediaDesejadaSimulador, setMediaDesejadaSimulador] = useState("6.0");
+  const [ferramentaPlanejamento, setFerramentaPlanejamento] =
+    useState<FerramentaPlanejamento>("ae");
   const [dadosCarregados, setDadosCarregados] = useState(false);
   const [modoFormulario, setModoFormulario] = useState<ModoFormulario>(null);
   const [nomeFormulario, setNomeFormulario] = useState("");
   const [serieFormulario, setSerieFormulario] = useState<SerieEscolar>("7EF");
   const [turmaFormulario, setTurmaFormulario] = useState(turmaPadrao("7EF"));
   const [mensagem, setMensagem] = useState("");
-  const [abaAtiva, setAbaAtiva] = useState<AbaApp>("selecao");
+  const [abaAtiva, setAbaAtiva] = useState<AbaApp>("inicio");
   const [anoLetivoSelecionado, setAnoLetivoSelecionado] =
     useState(ANO_LETIVO_PADRAO);
   const [mostrarSeletorAno, setMostrarSeletorAno] = useState(false);
@@ -2422,7 +2418,7 @@ export default function HomeScreen() {
 
           <Pressable
             style={styles.botaoConfigNovo}
-            onPress={() => setAbaAtiva("alunos")}
+            onPress={() => setAbaAtiva("perfil")}
           >
             <Text style={styles.botaoConfigTextoNovo}>⚙</Text>
           </Pressable>
@@ -2500,13 +2496,11 @@ export default function HomeScreen() {
   }
   function renderMenuInferior() {
     const itens: { aba: AbaApp; rotulo: string; icone: string }[] = [
-      { aba: "selecao", rotulo: "Alunos", icone: "☰" },
-      { aba: "painel", rotulo: "Painel", icone: "▦" },
       { aba: "inicio", rotulo: "Início", icone: "⌂" },
+      { aba: "alunos", rotulo: "Alunos", icone: "♟" },
       { aba: "notas", rotulo: "Notas", icone: "★" },
-      { aba: "planejamento", rotulo: "Plano", icone: "□" },
-      { aba: "simulador", rotulo: "Simular", icone: "◇" },
-      { aba: "alunos", rotulo: "Perfil", icone: "⚙" },
+      { aba: "planejamento", rotulo: "Planejar", icone: "▣" },
+      { aba: "perfil", rotulo: "Perfil", icone: "⚙" },
     ];
 
     return (
@@ -3321,298 +3315,222 @@ export default function HomeScreen() {
   }
 
   function renderInicio() {
+    const totalAlertasFamilia = resumoGeralAlunos.reduce(
+      (total, item) => total + item.emAtencao,
+      0,
+    );
+    const alunosSemNotasFamilia = resumoGeralAlunos.filter(
+      (item) => item.media === null,
+    ).length;
+
     return (
       <>
-        <View style={styles.cardCentralAlunoNovo}>
-          <View style={styles.cardTopoLinhaNovo}>
-            <View style={styles.centralAlunoCabecalhoNovo}>
-              <Text style={styles.labelHeroNovo}>Central do aluno</Text>
-              <Text style={styles.tituloCentralAlunoNovo}>
-                Acompanhamento de {filho.nome}
-              </Text>
-              <Text style={styles.infoInicioNovo}>
-                Resumo do ano letivo {anoLetivoSelecionado}, com alertas e
-                atalhos para as principais ações.
+        <View style={styles.topoInicioFamiliaNovo}>
+          <View style={styles.marcaInicioFamiliaNovo}>
+            <Image
+              source={require("../../assets/images/Icon-512-cmb.png")}
+              style={styles.logoInicioFamiliaNovo}
+            />
+            <View style={styles.textosMarcaInicioNovo}>
+              <Text style={styles.tituloMarcaInicioNovo}>Média CMB</Text>
+              <Text style={styles.subtituloMarcaInicioNovo}>
+                Acompanhamento escolar da família
               </Text>
             </View>
-
-            <Text style={styles.badgeSerieNovo}>
-              {obterRotuloSerie(filho.serie)}
-            </Text>
           </View>
 
-          <View style={styles.gradeIndicadoresCentralNovo}>
-            <View style={styles.cardIndicadorCentralNovo}>
-              <Text style={styles.indicadorCentralLabelNovo}>Média geral</Text>
-              <Text
-                style={[
-                  styles.indicadorCentralValorNovo,
-                  { color: classificacaoGeral.corTexto },
-                ]}
-              >
-                {mostrarNota(mediaGeralAluno)}
-              </Text>
-              <Text style={styles.indicadorCentralSubNovo}>
-                {classificacaoGeral.titulo}
-              </Text>
-            </View>
-
-            <View style={styles.cardIndicadorCentralNovo}>
-              <Text style={styles.indicadorCentralLabelNovo}>Com notas</Text>
-              <Text style={styles.indicadorCentralValorNovo}>
-                {disciplinasComNotas.length}
-              </Text>
-              <Text style={styles.indicadorCentralSubNovo}>
-                de {filho.disciplinas.length} disciplinas
-              </Text>
-            </View>
-
-            <View style={styles.cardIndicadorCentralNovo}>
-              <Text style={styles.indicadorCentralLabelNovo}>Em atenção</Text>
-              <Text
-                style={[
-                  styles.indicadorCentralValorNovo,
-                  disciplinasEmAtencao.length > 0 &&
-                    styles.valorAtencaoCentralNovo,
-                ]}
-              >
-                {disciplinasEmAtencao.length}
-              </Text>
-              <Text style={styles.indicadorCentralSubNovo}>abaixo de 6,0</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.gradeDestaquesCentralNovo}>
-          <View style={styles.cardDestaqueCentralNovo}>
-            <Text style={styles.labelHeroNovo}>Melhor desempenho</Text>
-            {melhorDesempenho ? (
-              <>
-                <Text style={styles.destaqueCentralTituloNovo}>
-                  {melhorDesempenho.nome}
-                </Text>
-                <Text style={styles.destaqueCentralValorNovo}>
-                  {mostrarNota(melhorDesempenho.media)}
-                </Text>
-              </>
-            ) : (
-              <Text style={styles.destaqueCentralVazioNovo}>
-                Lance as primeiras notas para visualizar o destaque.
-              </Text>
-            )}
-          </View>
-
-          <View
-            style={[
-              styles.cardDestaqueCentralNovo,
-              disciplinasEmAtencao.length > 0 && styles.cardAtencaoCentralNovo,
-            ]}
+          <Pressable
+            style={styles.botaoConfigInicioNovo}
+            onPress={() => setAbaAtiva("perfil")}
           >
-            <Text style={styles.labelHeroNovo}>Prioridade de estudo</Text>
-            {disciplinasEmAtencao.length > 0 ? (
-              <>
-                <Text style={styles.destaqueCentralTituloNovo}>
-                  {disciplinasEmAtencao[0].nome}
-                </Text>
-                <Text style={styles.destaqueCentralValorAtencaoNovo}>
-                  {mostrarNota(disciplinasEmAtencao[0].media)}
-                </Text>
-                {disciplinasEmAtencao.length > 1 ? (
-                  <Text style={styles.destaqueCentralVazioNovo}>
-                    + {disciplinasEmAtencao.length - 1} disciplina(s) em atenção
-                  </Text>
-                ) : null}
-              </>
-            ) : (
-              <Text style={styles.destaqueCentralVazioNovo}>
-                Nenhuma disciplina abaixo da média mínima.
-              </Text>
-            )}
-          </View>
+            <Text style={styles.botaoConfigInicioTextoNovo}>⚙</Text>
+          </Pressable>
         </View>
 
-        <View style={styles.cardAtalhosCentralNovo}>
-          <Text style={styles.tituloSecaoNovo}>Ações rápidas</Text>
-          <Text style={styles.infoAtalhosCentralNovo}>
-            Continue o acompanhamento sem procurar pelas telas.
+        <View style={styles.cardBoasVindasFamiliaNovo}>
+          <Text style={styles.saudacaoFamiliaNovo}>Olá, família!</Text>
+          <Text style={styles.descricaoFamiliaNovo}>
+            Veja rapidamente como estão os alunos acompanhados neste aparelho.
           </Text>
 
-          <View style={styles.gradeAtalhosCentralNovo}>
-            <Pressable
-              style={styles.botaoAtalhoCentralNovo}
-              onPress={() => setAbaAtiva("notas")}
-            >
-              <Text style={styles.iconeAtalhoCentralNovo}>★</Text>
-              <Text style={styles.tituloAtalhoCentralNovo}>Lançar notas</Text>
-              <Text style={styles.infoAtalhoCentralNovo}>
-                Atualize AP, GIP, AE e AR.
+          <View style={styles.gradeResumoFamiliaNovo}>
+            <View style={styles.cardResumoFamiliaNovo}>
+              <Text style={styles.rotuloResumoFamiliaNovo}>Alunos</Text>
+              <Text style={styles.valorResumoFamiliaNovo}>{filhos.length}</Text>
+              <Text style={styles.subResumoFamiliaNovo}>cadastrados</Text>
+            </View>
+
+            <View style={styles.cardResumoFamiliaNovo}>
+              <Text style={styles.rotuloResumoFamiliaNovo}>Alertas</Text>
+              <Text style={styles.valorResumoFamiliaNovo}>
+                {totalAlertasFamilia}
               </Text>
+              <Text style={styles.subResumoFamiliaNovo}>
+                disciplinas abaixo de 6
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.blocoAcoesFamiliaNovo}>
+          <Text style={styles.tituloSecaoInicioNovo}>Ações rápidas</Text>
+          <View style={styles.linhaAcoesFamiliaNovo}>
+            <Pressable
+              style={styles.acaoRapidaFamiliaNovo}
+              onPress={abrirNovoFilho}
+            >
+              <Text style={styles.iconeAcaoFamiliaNovo}>＋</Text>
+              <Text style={styles.textoAcaoFamiliaNovo}>Adicionar</Text>
             </Pressable>
 
             <Pressable
-              style={styles.botaoAtalhoCentralNovo}
-              onPress={() => setAbaAtiva("planejamento")}
-            >
-              <Text style={styles.iconeAtalhoCentralNovo}>□</Text>
-              <Text style={styles.tituloAtalhoCentralNovo}>Planejar AE</Text>
-              <Text style={styles.infoAtalhoCentralNovo}>
-                Calcule a nota necessária.
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={styles.botaoAtalhoCentralNovo}
-              onPress={() => void compartilharBoletimPdf()}
-            >
-              <Text style={styles.iconeAtalhoCentralNovo}>↗</Text>
-              <Text style={styles.tituloAtalhoCentralNovo}>
-                Compartilhar PDF
-              </Text>
-              <Text style={styles.infoAtalhoCentralNovo}>
-                Envie pelo WhatsApp, e-mail ou outros apps.
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={styles.botaoAtalhoCentralNovo}
+              style={styles.acaoRapidaFamiliaNovo}
               onPress={gerarBoletimDetalhado}
             >
-              <Text style={styles.iconeAtalhoCentralNovo}>▤</Text>
-              <Text style={styles.tituloAtalhoCentralNovo}>
-                Imprimir boletim
-              </Text>
-              <Text style={styles.infoAtalhoCentralNovo}>
-                Abra a versão para impressão ou salvar manualmente.
-              </Text>
+              <Text style={styles.iconeAcaoFamiliaNovo}>▤</Text>
+              <Text style={styles.textoAcaoFamiliaNovo}>Boletim</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.acaoRapidaFamiliaNovo}
+              onPress={() => void compartilharBoletimPdf()}
+            >
+              <Text style={styles.iconeAcaoFamiliaNovo}>↗</Text>
+              <Text style={styles.textoAcaoFamiliaNovo}>Compartilhar</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.acaoRapidaFamiliaNovo}
+              onPress={() => setAbaAtiva("notas")}
+            >
+              <Text style={styles.iconeAcaoFamiliaNovo}>★</Text>
+              <Text style={styles.textoAcaoFamiliaNovo}>Notas</Text>
             </Pressable>
           </View>
         </View>
 
-        <View style={styles.cardInicioNovo}>
-          <View style={styles.cardTopoLinhaNovo}>
-            <View>
-              <Text style={styles.tituloSecaoNovo}>Disciplinas</Text>
-              <Text style={styles.infoInicioNovo}>
-                Toque em um cartão para abrir diretamente as notas da
-                disciplina.
+        {melhorAlunoGeral ? (
+          <Pressable
+            style={styles.cardDestaqueFamiliaNovo}
+            onPress={() => abrirAlunoNoPainel(melhorAlunoGeral.index)}
+          >
+            <View style={styles.avatarDestaqueFamiliaNovo}>
+              {melhorAlunoGeral.aluno.fotoUri ? (
+                <Image
+                  source={{ uri: melhorAlunoGeral.aluno.fotoUri }}
+                  style={styles.avatarImagemDestaqueFamiliaNovo}
+                />
+              ) : (
+                <Text style={styles.avatarTextoDestaqueFamiliaNovo}>
+                  {obterIniciais(melhorAlunoGeral.aluno.nome)}
+                </Text>
+              )}
+            </View>
+
+            <View style={styles.infoDestaqueFamiliaNovo}>
+              <Text style={styles.rotuloDestaqueFamiliaNovo}>
+                Melhor desempenho
+              </Text>
+              <Text style={styles.nomeDestaqueFamiliaNovo} numberOfLines={1}>
+                {melhorAlunoGeral.aluno.nome}
+              </Text>
+              <Text style={styles.dadosDestaqueFamiliaNovo} numberOfLines={1}>
+                {obterRotuloSerie(melhorAlunoGeral.aluno.serie)} • Turma{" "}
+                {melhorAlunoGeral.aluno.turma}
               </Text>
             </View>
 
-            {disciplinasSemNotas > 0 ? (
-              <Text style={styles.badgePendenteCentralNovo}>
-                {disciplinasSemNotas} pendente(s)
+            <View style={styles.mediaDestaqueFamiliaNovo}>
+              <Text style={styles.mediaDestaqueValorNovo}>
+                {mostrarNota(melhorAlunoGeral.media)}
               </Text>
-            ) : null}
+              <Text style={styles.mediaDestaqueRotuloNovo}>média</Text>
+            </View>
+          </Pressable>
+        ) : null}
+
+        <View style={styles.cabecalhoListaFamiliaNovo}>
+          <View style={styles.titulosListaFamiliaNovo}>
+            <Text style={styles.tituloSecaoInicioNovo}>Seus alunos</Text>
+            <Text style={styles.subtituloSecaoInicioNovo}>
+              Toque em um aluno para abrir o acompanhamento.
+            </Text>
           </View>
+          <Pressable onPress={() => setAbaAtiva("alunos")}>
+            <Text style={styles.linkVerTodosFamiliaNovo}>Gerenciar</Text>
+          </Pressable>
         </View>
 
-        <View style={styles.gradeResumoNovo}>
-          {resumoDisciplinas.map((item, index) => (
+        <View style={styles.listaCompactaFamiliaNovo}>
+          {resumoGeralAlunos.map((item) => (
             <Pressable
-              key={item.nome}
-              style={[
-                styles.cardDisciplinaNovo,
-                {
-                  backgroundColor: item.classificacao.corFundo,
-                  borderColor: item.classificacao.corBorda,
-                },
-              ]}
-              onPress={() => {
-                setDisciplinaSelecionada(index);
-                setAbaAtiva("notas");
-              }}
+              key={item.aluno.id}
+              style={styles.cardAlunoFamiliaNovo}
+              onPress={() => abrirAlunoNoPainel(item.index)}
             >
-              <Text
+              <View
                 style={[
-                  styles.siglaDisciplinaNovo,
-                  { color: item.classificacao.corTexto },
+                  styles.avatarAlunoFamiliaNovo,
+                  { backgroundColor: item.classificacao.corAvatar },
                 ]}
               >
-                {item.sigla}
-              </Text>
+                {item.aluno.fotoUri ? (
+                  <Image
+                    source={{ uri: item.aluno.fotoUri }}
+                    style={styles.avatarImagemAlunoFamiliaNovo}
+                  />
+                ) : (
+                  <Text style={styles.avatarTextoAlunoFamiliaNovo}>
+                    {obterIniciais(item.aluno.nome)}
+                  </Text>
+                )}
+              </View>
 
-              <Text
-                style={[
-                  styles.mediaDisciplinaNovo,
-                  { color: item.classificacao.corTexto },
-                ]}
-              >
-                {mostrarNota(item.media)}
-              </Text>
+              <View style={styles.infoAlunoFamiliaNovo}>
+                <Text style={styles.nomeAlunoFamiliaNovo} numberOfLines={1}>
+                  {item.aluno.nome}
+                </Text>
+                <Text style={styles.dadosAlunoFamiliaNovo} numberOfLines={1}>
+                  {obterRotuloSerie(item.aluno.serie)} • Turma{" "}
+                  {item.aluno.turma} • {item.anoAtivo}
+                </Text>
+                <Text
+                  style={[
+                    styles.statusAlunoFamiliaNovo,
+                    { color: item.classificacao.corTexto },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {item.emAtencao > 0
+                    ? `${item.emAtencao} disciplina(s) em atenção`
+                    : item.disciplinasComNota > 0
+                      ? item.classificacao.titulo
+                      : "Sem notas lançadas"}
+                </Text>
+              </View>
 
-              <Text
-                style={[
-                  styles.statusDisciplinaNovo,
-                  { color: item.classificacao.corTexto },
-                ]}
-              >
-                {item.classificacao.titulo}
-              </Text>
+              <View style={styles.areaMediaAlunoFamiliaNovo}>
+                <Text
+                  style={[
+                    styles.mediaAlunoFamiliaNovo,
+                    { color: item.classificacao.corTexto },
+                  ]}
+                >
+                  {mostrarNota(item.media)}
+                </Text>
+                <Text style={styles.rotuloMediaAlunoFamiliaNovo}>média</Text>
+              </View>
             </Pressable>
           ))}
         </View>
 
-        <View style={styles.cardLegendaNovo}>
-          <Text style={styles.tituloSecaoNovo}>Legenda de desempenho</Text>
-
-          <View style={styles.itemLegendaNovo}>
-            <View
-              style={[styles.barraLegendaNovo, { backgroundColor: "#16a34a" }]}
-            />
-            <View>
-              <Text
-                style={[styles.textoLegendaTituloNovo, { color: "#166534" }]}
-              >
-                9,0 ou mais: Excelente
-              </Text>
-              <Text style={styles.textoLegendaSubNovo}>Parabéns</Text>
-            </View>
+        {alunosSemNotasFamilia > 0 ? (
+          <View style={styles.avisoInicioFamiliaNovo}>
+            <Text style={styles.avisoInicioFamiliaTextoNovo}>
+              {alunosSemNotasFamilia} aluno(s) ainda não possuem notas lançadas.
+            </Text>
           </View>
-
-          <View style={styles.itemLegendaNovo}>
-            <View
-              style={[styles.barraLegendaNovo, { backgroundColor: "#2563eb" }]}
-            />
-            <View>
-              <Text
-                style={[styles.textoLegendaTituloNovo, { color: "#1d4ed8" }]}
-              >
-                8,0 a 8,9: Muito bom
-              </Text>
-              <Text style={styles.textoLegendaSubNovo}>Continue assim</Text>
-            </View>
-          </View>
-
-          <View style={styles.itemLegendaNovo}>
-            <View
-              style={[styles.barraLegendaNovo, { backgroundColor: "#d97706" }]}
-            />
-            <View>
-              <Text
-                style={[styles.textoLegendaTituloNovo, { color: "#92400e" }]}
-              >
-                6,0 a 7,9: Bom
-              </Text>
-              <Text style={styles.textoLegendaSubNovo}>Você pode melhorar</Text>
-            </View>
-          </View>
-
-          <View style={styles.itemLegendaNovo}>
-            <View
-              style={[styles.barraLegendaNovo, { backgroundColor: "#dc2626" }]}
-            />
-            <View>
-              <Text
-                style={[styles.textoLegendaTituloNovo, { color: "#b91c1c" }]}
-              >
-                Abaixo de 6,0: Atenção
-              </Text>
-              <Text style={styles.textoLegendaSubNovo}>
-                Você precisa estudar
-              </Text>
-            </View>
-          </View>
-        </View>
+        ) : null}
       </>
     );
   }
@@ -4290,6 +4208,181 @@ export default function HomeScreen() {
     );
   }
 
+  function renderPlanejamentoUnificado() {
+    return (
+      <>
+        <View style={styles.cardFerramentasPlanejamentoNovo}>
+          <Text style={styles.labelHeroNovo}>Planejamento</Text>
+          <Text style={styles.tituloFerramentasPlanejamentoNovo}>
+            Escolha uma ferramenta
+          </Text>
+          <Text style={styles.infoFerramentasPlanejamentoNovo}>
+            Calcule a AE necessária ou teste cenários sem alterar as notas reais.
+          </Text>
+
+          <View style={styles.seletorFerramentaPlanejamentoNovo}>
+            <Pressable
+              style={[
+                styles.botaoFerramentaPlanejamentoNovo,
+                ferramentaPlanejamento === "ae" &&
+                  styles.botaoFerramentaPlanejamentoAtivoNovo,
+              ]}
+              onPress={() => setFerramentaPlanejamento("ae")}
+            >
+              <Text
+                style={[
+                  styles.botaoFerramentaPlanejamentoTextoNovo,
+                  ferramentaPlanejamento === "ae" &&
+                    styles.botaoFerramentaPlanejamentoTextoAtivoNovo,
+                ]}
+              >
+                Quanto preciso tirar?
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.botaoFerramentaPlanejamentoNovo,
+                ferramentaPlanejamento === "simulador" &&
+                  styles.botaoFerramentaPlanejamentoAtivoNovo,
+              ]}
+              onPress={() => setFerramentaPlanejamento("simulador")}
+            >
+              <Text
+                style={[
+                  styles.botaoFerramentaPlanejamentoTextoNovo,
+                  ferramentaPlanejamento === "simulador" &&
+                    styles.botaoFerramentaPlanejamentoTextoAtivoNovo,
+                ]}
+              >
+                Simular notas
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {ferramentaPlanejamento === "ae"
+          ? renderPlanejamento()
+          : renderSimulador()}
+      </>
+    );
+  }
+
+  function renderPerfil() {
+    return (
+      <>
+        <View style={styles.cardAlunosTopoNovo}>
+          <Text style={styles.labelHeroNovo}>Perfil</Text>
+          <Text style={styles.tituloAlunosNovo}>Configurações do app</Text>
+          <Text style={styles.infoAlunosNovo}>
+            Backup, licença, privacidade e informações do Média CMB.
+          </Text>
+        </View>
+
+        <View style={styles.cardBackupNovo}>
+          <Text style={styles.labelHeroNovo}>Dados e segurança</Text>
+          <Text style={styles.tituloBackupNovo}>Backup dos dados</Text>
+
+          <Text style={styles.infoBackupNovo}>
+            Exporte um arquivo para guardar ou transferir as notas para outro
+            aparelho. O Média CMB não envia nem armazena suas notas em servidor.
+          </Text>
+
+          <View style={styles.botoesBackupNovo}>
+            <Pressable
+              style={styles.botaoExportarBackupNovo}
+              onPress={exportarBackup}
+            >
+              <Text style={styles.botaoExportarBackupTextoNovo}>
+                Exportar backup
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.botaoImportarBackupNovo}
+              onPress={importarBackup}
+            >
+              <Text style={styles.botaoImportarBackupTextoNovo}>
+                Importar backup
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+        <View style={styles.cardPerfilInfoNovo}>
+          <Text style={styles.labelHeroNovo}>Licença</Text>
+          <Text style={styles.tituloPerfilInfoNovo}>
+            App ativado neste dispositivo
+          </Text>
+
+          <Text style={styles.infoPerfilInfoNovo}>
+            A licença do Média CMB fica vinculada ao aparelho usado na ativação.
+            Cada chave pode ser usada em até 2 dispositivos autorizados.
+          </Text>
+
+          <View style={styles.caixaStatusLicencaPerfilNovo}>
+            <Text style={styles.statusLicencaPerfilTextoNovo}>
+              Licença ativa
+            </Text>
+          </View>
+
+          <View style={styles.caixaDetalhesLicencaPerfilNovo}>
+            <View style={styles.linhaDetalheLicencaPerfilNovo}>
+              <Text style={styles.rotuloDetalheLicencaPerfilNovo}>Chave</Text>
+              <Text style={styles.valorDetalheLicencaPerfilNovo}>
+                {ocultarChaveLicenca(dadosLicencaLocal?.chave ?? chaveAtivacao)}
+              </Text>
+            </View>
+
+            <View style={styles.linhaDetalheLicencaPerfilNovo}>
+              <Text style={styles.rotuloDetalheLicencaPerfilNovo}>
+                Plataforma
+              </Text>
+              <Text style={styles.valorDetalheLicencaPerfilNovo}>
+                {obterNomePlataforma()}
+              </Text>
+            </View>
+
+            <View style={styles.linhaDetalheLicencaPerfilNovo}>
+              <Text style={styles.rotuloDetalheLicencaPerfilNovo}>
+                Ativada em
+              </Text>
+              <Text style={styles.valorDetalheLicencaPerfilNovo}>
+                {formatarDataHora(dadosLicencaLocal?.ativadaEm)}
+              </Text>
+            </View>
+
+            <View style={styles.linhaDetalheLicencaPerfilNovo}>
+              <Text style={styles.rotuloDetalheLicencaPerfilNovo}>
+                Última validação
+              </Text>
+              <Text style={styles.valorDetalheLicencaPerfilNovo}>
+                {formatarDataHora(
+                  dadosLicencaLocal?.ultimaValidacaoEm ??
+                    dadosLicencaLocal?.ativadaEm,
+                )}
+              </Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.cardPerfilInfoNovo}>
+          <Text style={styles.labelHeroNovo}>Sobre o app</Text>
+          <Text style={styles.tituloPerfilInfoNovo}>Média CMB</Text>
+
+          <Text style={styles.infoPerfilInfoNovo}>
+            Aplicativo desenvolvido para auxiliar no acompanhamento das médias
+            escolares, planejamento de recuperação e organização das notas por
+            ano letivo.
+          </Text>
+
+          <Text style={styles.infoPerfilInfoNovo}>
+            Desenvolvido por EDS e Dupont.
+          </Text>
+        </View>
+        {mensagem ? <Text style={styles.mensagem}>{mensagem}</Text> : null}
+      </>
+    );
+  }
+
   function renderAlunos() {
     const termoPesquisa = normalizarTextoBusca(pesquisaAluno);
 
@@ -4310,10 +4403,10 @@ export default function HomeScreen() {
       <>
         <View style={styles.cardAlunosTopoNovo}>
           <View>
-            <Text style={styles.labelHeroNovo}>Perfil</Text>
-            <Text style={styles.tituloAlunosNovo}>Configurações do app</Text>
+            <Text style={styles.labelHeroNovo}>Alunos</Text>
+            <Text style={styles.tituloAlunosNovo}>Gerenciar estudantes</Text>
             <Text style={styles.infoAlunosNovo}>
-              Alunos, backup, licença e informações do Média CMB
+              Cadastre, edite e organize os perfis dos alunos.
             </Text>
           </View>
           <View style={styles.cardSecaoPerfilNovo}>
@@ -4532,105 +4625,6 @@ export default function HomeScreen() {
           </Text>
         </Pressable>
 
-        <View style={styles.cardBackupNovo}>
-          <Text style={styles.labelHeroNovo}>Dados e segurança</Text>
-          <Text style={styles.tituloBackupNovo}>Backup dos dados</Text>
-
-          <Text style={styles.infoBackupNovo}>
-            Exporte um arquivo para guardar ou transferir as notas para outro
-            aparelho. O Média CMB não envia nem armazena suas notas em servidor.
-          </Text>
-
-          <View style={styles.botoesBackupNovo}>
-            <Pressable
-              style={styles.botaoExportarBackupNovo}
-              onPress={exportarBackup}
-            >
-              <Text style={styles.botaoExportarBackupTextoNovo}>
-                Exportar backup
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={styles.botaoImportarBackupNovo}
-              onPress={importarBackup}
-            >
-              <Text style={styles.botaoImportarBackupTextoNovo}>
-                Importar backup
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-        <View style={styles.cardPerfilInfoNovo}>
-          <Text style={styles.labelHeroNovo}>Licença</Text>
-          <Text style={styles.tituloPerfilInfoNovo}>
-            App ativado neste dispositivo
-          </Text>
-
-          <Text style={styles.infoPerfilInfoNovo}>
-            A licença do Média CMB fica vinculada ao aparelho usado na ativação.
-            Cada chave pode ser usada em até 2 dispositivos autorizados.
-          </Text>
-
-          <View style={styles.caixaStatusLicencaPerfilNovo}>
-            <Text style={styles.statusLicencaPerfilTextoNovo}>
-              Licença ativa
-            </Text>
-          </View>
-
-          <View style={styles.caixaDetalhesLicencaPerfilNovo}>
-            <View style={styles.linhaDetalheLicencaPerfilNovo}>
-              <Text style={styles.rotuloDetalheLicencaPerfilNovo}>Chave</Text>
-              <Text style={styles.valorDetalheLicencaPerfilNovo}>
-                {ocultarChaveLicenca(dadosLicencaLocal?.chave ?? chaveAtivacao)}
-              </Text>
-            </View>
-
-            <View style={styles.linhaDetalheLicencaPerfilNovo}>
-              <Text style={styles.rotuloDetalheLicencaPerfilNovo}>
-                Plataforma
-              </Text>
-              <Text style={styles.valorDetalheLicencaPerfilNovo}>
-                {obterNomePlataforma()}
-              </Text>
-            </View>
-
-            <View style={styles.linhaDetalheLicencaPerfilNovo}>
-              <Text style={styles.rotuloDetalheLicencaPerfilNovo}>
-                Ativada em
-              </Text>
-              <Text style={styles.valorDetalheLicencaPerfilNovo}>
-                {formatarDataHora(dadosLicencaLocal?.ativadaEm)}
-              </Text>
-            </View>
-
-            <View style={styles.linhaDetalheLicencaPerfilNovo}>
-              <Text style={styles.rotuloDetalheLicencaPerfilNovo}>
-                Última validação
-              </Text>
-              <Text style={styles.valorDetalheLicencaPerfilNovo}>
-                {formatarDataHora(
-                  dadosLicencaLocal?.ultimaValidacaoEm ??
-                    dadosLicencaLocal?.ativadaEm,
-                )}
-              </Text>
-            </View>
-          </View>
-        </View>
-        <View style={styles.cardPerfilInfoNovo}>
-          <Text style={styles.labelHeroNovo}>Sobre o app</Text>
-          <Text style={styles.tituloPerfilInfoNovo}>Média CMB</Text>
-
-          <Text style={styles.infoPerfilInfoNovo}>
-            Aplicativo desenvolvido para auxiliar no acompanhamento das médias
-            escolares, planejamento de recuperação e organização das notas por
-            ano letivo.
-          </Text>
-
-          <Text style={styles.infoPerfilInfoNovo}>
-            Desenvolvido por EDS e Dupont.
-          </Text>
-        </View>
         {mensagem ? <Text style={styles.mensagem}>{mensagem}</Text> : null}
 
         {modoFormulario && (
@@ -4763,24 +4757,21 @@ export default function HomeScreen() {
           { width: larguraConteudo, alignSelf: "center" },
         ]}
       >
-        {abaAtiva !== "selecao" && abaAtiva !== "painel" && renderCabecalho()}
+        {(abaAtiva === "notas" || abaAtiva === "planejamento") &&
+          renderCabecalho()}
 
-        {abaAtiva === "selecao" && renderSelecaoAluno()}
-        {abaAtiva === "painel" && renderPainelGeral()}
         {abaAtiva === "inicio" && renderInicio()}
-        {abaAtiva === "notas" && renderNotas()}
-        {abaAtiva === "planejamento" && renderPlanejamento()}
-        {abaAtiva === "simulador" && renderSimulador()}
         {abaAtiva === "alunos" && renderAlunos()}
+        {abaAtiva === "notas" && renderNotas()}
+        {abaAtiva === "planejamento" && renderPlanejamentoUnificado()}
+        {abaAtiva === "perfil" && renderPerfil()}
 
-        {abaAtiva !== "selecao" ? (
-          <>
+        <>
             <Text style={styles.rodape}>Desenvolvido por EDS e Dupont</Text>
             <Text style={styles.rodapeSub}>
               Seus dados ficam salvos apenas neste dispositivo.
             </Text>
-          </>
-        ) : null}
+        </>
       </ScrollView>
 
       {renderMenuInferior()}
@@ -5375,6 +5366,56 @@ const styles = StyleSheet.create({
     color: "#64748b",
     fontWeight: "600",
   },
+  cardFerramentasPlanejamentoNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 2,
+  },
+  tituloFerramentasPlanejamentoNovo: {
+    marginTop: 6,
+    fontSize: 24,
+    color: "#111827",
+    fontWeight: "bold",
+  },
+  infoFerramentasPlanejamentoNovo: {
+    marginTop: 7,
+    fontSize: 14,
+    color: "#64748b",
+    lineHeight: 20,
+  },
+  seletorFerramentaPlanejamentoNovo: {
+    marginTop: 16,
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: "#f1f5f9",
+    borderRadius: 16,
+    padding: 5,
+  },
+  botaoFerramentaPlanejamentoNovo: {
+    flex: 1,
+    minHeight: 52,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+  },
+  botaoFerramentaPlanejamentoAtivoNovo: {
+    backgroundColor: "#075fab",
+  },
+  botaoFerramentaPlanejamentoTextoNovo: {
+    color: "#475569",
+    fontSize: 13,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  botaoFerramentaPlanejamentoTextoAtivoNovo: {
+    color: "#ffffff",
+  },
+
   appShellNovo: {
     flex: 1,
     backgroundColor: "#f3f6fb",
@@ -7633,4 +7674,307 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "bold",
   },
+  topoInicioFamiliaNovo: {
+    marginBottom: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  marcaInicioFamiliaNovo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  logoInicioFamiliaNovo: {
+    width: 46,
+    height: 46,
+    borderRadius: 15,
+  },
+  textosMarcaInicioNovo: {
+    flex: 1,
+  },
+  tituloMarcaInicioNovo: {
+    fontSize: 22,
+    color: "#075fab",
+    fontWeight: "bold",
+  },
+  subtituloMarcaInicioNovo: {
+    marginTop: 2,
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  botaoConfigInicioNovo: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+  },
+  botaoConfigInicioTextoNovo: {
+    fontSize: 20,
+    color: "#075fab",
+  },
+  cardBoasVindasFamiliaNovo: {
+    backgroundColor: "#075fab",
+    borderRadius: 24,
+    padding: 22,
+    elevation: 4,
+  },
+  saudacaoFamiliaNovo: {
+    fontSize: 28,
+    color: "#ffffff",
+    fontWeight: "bold",
+  },
+  descricaoFamiliaNovo: {
+    marginTop: 8,
+    fontSize: 15,
+    lineHeight: 22,
+    color: "#e0efff",
+    fontWeight: "600",
+  },
+  gradeResumoFamiliaNovo: {
+    marginTop: 20,
+    flexDirection: "row",
+    gap: 12,
+  },
+  cardResumoFamiliaNovo: {
+    flex: 1,
+    minHeight: 106,
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.24)",
+    justifyContent: "space-between",
+  },
+  rotuloResumoFamiliaNovo: {
+    color: "#dbeafe",
+    fontSize: 11,
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  valorResumoFamiliaNovo: {
+    color: "#ffffff",
+    fontSize: 30,
+    fontWeight: "bold",
+  },
+  subResumoFamiliaNovo: {
+    color: "#e0efff",
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "600",
+  },
+  blocoAcoesFamiliaNovo: {
+    marginTop: 20,
+  },
+  tituloSecaoInicioNovo: {
+    fontSize: 21,
+    color: "#111827",
+    fontWeight: "bold",
+  },
+  linhaAcoesFamiliaNovo: {
+    marginTop: 13,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  acaoRapidaFamiliaNovo: {
+    flex: 1,
+    alignItems: "center",
+  },
+  iconeAcaoFamiliaNovo: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: "#e8eeff",
+    color: "#075fab",
+    fontSize: 23,
+    fontWeight: "bold",
+    textAlign: "center",
+    textAlignVertical: "center",
+    lineHeight: 56,
+    overflow: "hidden",
+  },
+  textoAcaoFamiliaNovo: {
+    marginTop: 7,
+    fontSize: 11,
+    color: "#334155",
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  cardDestaqueFamiliaNovo: {
+    marginTop: 22,
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 13,
+    elevation: 2,
+  },
+  avatarDestaqueFamiliaNovo: {
+    width: 66,
+    height: 66,
+    borderRadius: 20,
+    backgroundColor: "#dbeafe",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarImagemDestaqueFamiliaNovo: {
+    width: "100%",
+    height: "100%",
+  },
+  avatarTextoDestaqueFamiliaNovo: {
+    fontSize: 20,
+    color: "#075fab",
+    fontWeight: "bold",
+  },
+  infoDestaqueFamiliaNovo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  rotuloDestaqueFamiliaNovo: {
+    color: "#075fab",
+    fontSize: 10,
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    letterSpacing: 0.7,
+  },
+  nomeDestaqueFamiliaNovo: {
+    marginTop: 5,
+    fontSize: 18,
+    color: "#111827",
+    fontWeight: "bold",
+  },
+  dadosDestaqueFamiliaNovo: {
+    marginTop: 3,
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  mediaDestaqueFamiliaNovo: {
+    alignItems: "flex-end",
+  },
+  mediaDestaqueValorNovo: {
+    fontSize: 28,
+    color: "#075fab",
+    fontWeight: "bold",
+  },
+  mediaDestaqueRotuloNovo: {
+    fontSize: 10,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  cabecalhoListaFamiliaNovo: {
+    marginTop: 24,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  titulosListaFamiliaNovo: {
+    flex: 1,
+  },
+  subtituloSecaoInicioNovo: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  linkVerTodosFamiliaNovo: {
+    color: "#075fab",
+    fontSize: 13,
+    fontWeight: "bold",
+  },
+  listaCompactaFamiliaNovo: {
+    gap: 12,
+  },
+  cardAlunoFamiliaNovo: {
+    minHeight: 94,
+    backgroundColor: "#ffffff",
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#dbe3ef",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    elevation: 1,
+  },
+  avatarAlunoFamiliaNovo: {
+    width: 54,
+    height: 54,
+    borderRadius: 17,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarImagemAlunoFamiliaNovo: {
+    width: "100%",
+    height: "100%",
+  },
+  avatarTextoAlunoFamiliaNovo: {
+    color: "#ffffff",
+    fontSize: 17,
+    fontWeight: "bold",
+  },
+  infoAlunoFamiliaNovo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  nomeAlunoFamiliaNovo: {
+    fontSize: 16,
+    color: "#111827",
+    fontWeight: "bold",
+  },
+  dadosAlunoFamiliaNovo: {
+    marginTop: 3,
+    fontSize: 11,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  statusAlunoFamiliaNovo: {
+    marginTop: 4,
+    fontSize: 11,
+    fontWeight: "bold",
+  },
+  areaMediaAlunoFamiliaNovo: {
+    minWidth: 58,
+    alignItems: "flex-end",
+  },
+  mediaAlunoFamiliaNovo: {
+    fontSize: 25,
+    fontWeight: "bold",
+  },
+  rotuloMediaAlunoFamiliaNovo: {
+    marginTop: 1,
+    fontSize: 9,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  avisoInicioFamiliaNovo: {
+    marginTop: 16,
+    padding: 13,
+    borderRadius: 16,
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  avisoInicioFamiliaTextoNovo: {
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "600",
+    textAlign: "center",
+  },
+
 });
