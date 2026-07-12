@@ -765,7 +765,7 @@ function gerarNomeArquivoBackup() {
   const hora = String(agora.getHours()).padStart(2, "0");
   const minuto = String(agora.getMinutes()).padStart(2, "0");
 
-  return `media-cmb-backup-${ano}-${mes}-${dia}-${hora}${minuto}.json`;
+  return `Backup_Media_CMB_${dia}-${mes}-${ano}_${hora}-${minuto}.mediacmb`;
 }
 function normalizarTextoBusca(valor: string) {
   return valor
@@ -1756,43 +1756,92 @@ export default function HomeScreen() {
     setPesquisaAluno("");
     setMensagem(`${aluno.nome} foi excluído com segurança.`);
   }
-  async function exportarBackup() {
+  function criarArquivoBackup() {
+    const backup: BackupMediaCMB = {
+      app: "MEDIA_CMB",
+      versaoBackup: VERSAO_BACKUP_ATUAL,
+      exportadoEm: new Date().toISOString(),
+      filhos,
+    };
+
+    const conteudo = JSON.stringify(backup, null, 2);
+    const nomeArquivo = gerarNomeArquivoBackup();
+    const blob = new Blob([conteudo], {
+      type: "application/vnd.media-cmb.backup+json",
+    });
+
+    return { backup, conteudo, nomeArquivo, blob };
+  }
+
+  async function compartilharBackup() {
     try {
-      const backup: BackupMediaCMB = {
-        app: "MEDIA_CMB",
-        versaoBackup: VERSAO_BACKUP_ATUAL,
-        exportadoEm: new Date().toISOString(),
-        filhos,
-      };
-
-      const conteudo = JSON.stringify(backup, null, 2);
-      const nomeArquivo = gerarNomeArquivoBackup();
-
-      if (Platform.OS === "web" && typeof document !== "undefined") {
-        const blob = new Blob([conteudo], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = nomeArquivo;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        URL.revokeObjectURL(url);
-
+      if (Platform.OS !== "web" || typeof window === "undefined") {
         setMensagem(
-          "Backup exportado com sucesso. Guarde o arquivo em local seguro.",
+          "O compartilhamento de backup está disponível na versão web/PWA do app.",
         );
         return;
       }
 
+      const { nomeArquivo, blob } = criarArquivoBackup();
+      const arquivo = new File([blob], nomeArquivo, {
+        type: "application/vnd.media-cmb.backup+json",
+      });
+      const navegador = navigator as Navigator & {
+        canShare?: (dados?: ShareData) => boolean;
+        share?: (dados?: ShareData) => Promise<void>;
+      };
+
+      if (
+        navegador.share &&
+        (!navegador.canShare || navegador.canShare({ files: [arquivo] }))
+      ) {
+        await navegador.share({
+          title: "Backup do Média CMB",
+          text: "Arquivo de backup do Média CMB. Abra-o apenas pelo próprio aplicativo para restaurar os dados.",
+          files: [arquivo],
+        });
+        setMensagem("Backup compartilhado com sucesso.");
+        return;
+      }
+
+      salvarBackupNoAparelho();
       setMensagem(
-        "A exportação de backup está disponível na versão web/PWA do app.",
+        "Este navegador não permite compartilhar o arquivo diretamente. O backup foi salvo no aparelho.",
+      );
+    } catch (erro: any) {
+      if (erro?.name === "AbortError") {
+        setMensagem("Compartilhamento cancelado.");
+        return;
+      }
+      console.log("Erro ao compartilhar backup:", erro);
+      setMensagem("Não foi possível compartilhar o backup agora.");
+    }
+  }
+
+  function salvarBackupNoAparelho() {
+    try {
+      if (Platform.OS !== "web" || typeof document === "undefined") {
+        setMensagem(
+          "A exportação de backup está disponível na versão web/PWA do app.",
+        );
+        return;
+      }
+
+      const { nomeArquivo, blob } = criarArquivoBackup();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = nomeArquivo;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+      setMensagem(
+        "Backup salvo. Não é necessário abrir o arquivo; use Importar backup para restaurá-lo.",
       );
     } catch (erro) {
-      console.log("Erro ao exportar backup:", erro);
-      setMensagem("Não foi possível exportar o backup agora.");
+      console.log("Erro ao salvar backup:", erro);
+      setMensagem("Não foi possível salvar o backup agora.");
     }
   }
 
@@ -1807,7 +1856,7 @@ export default function HomeScreen() {
 
       const input = document.createElement("input");
       input.type = "file";
-      input.accept = ".json,application/json";
+      input.accept = ".mediacmb,.json,application/json,application/vnd.media-cmb.backup+json";
 
       input.onchange = () => {
         const arquivo = input.files?.[0];
@@ -1855,11 +1904,30 @@ export default function HomeScreen() {
               return;
             }
 
+            const anosEncontrados = Array.from(
+              new Set(
+                dados.filhos.flatMap((item: any) =>
+                  Object.keys(item?.anosLetivos ?? {}),
+                ),
+              ),
+            ).sort();
+            const possuiFotos = dados.filhos.some(
+              (item: any) => String(item?.fotoUri ?? "").trim() !== "",
+            );
+            const dataBackup = formatarDataHora(dados?.exportadoEm);
+            const resumoBackup = [
+              `Data do backup: ${dataBackup}`,
+              `Alunos: ${dados.filhos.length}`,
+              `Anos letivos: ${anosEncontrados.length ? anosEncontrados.join(", ") : "não informado"}`,
+              `Fotos incluídas: ${possuiFotos ? "Sim" : "Não"}`,
+              "",
+              "Os dados atuais deste aparelho serão substituídos.",
+              "Deseja restaurar este backup?",
+            ].join("\n");
+
             const confirmar =
               typeof window !== "undefined"
-                ? window.confirm(
-                    "Ao importar este backup, os dados atuais deste aparelho serão substituídos. Deseja continuar?",
-                  )
+                ? window.confirm(`Backup encontrado\n\n${resumoBackup}`)
                 : true;
 
             if (!confirmar) {
@@ -4569,10 +4637,19 @@ export default function HomeScreen() {
           <View style={styles.botoesBackupNovo}>
             <Pressable
               style={styles.botaoExportarBackupNovo}
-              onPress={exportarBackup}
+              onPress={() => void compartilharBackup()}
             >
               <Text style={styles.botaoExportarBackupTextoNovo}>
-                Exportar backup
+                Compartilhar backup
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.botaoImportarBackupNovo}
+              onPress={salvarBackupNoAparelho}
+            >
+              <Text style={styles.botaoImportarBackupTextoNovo}>
+                Salvar no aparelho
               </Text>
             </Pressable>
 
@@ -4585,6 +4662,10 @@ export default function HomeScreen() {
               </Text>
             </Pressable>
           </View>
+
+          <Text style={styles.infoBackupNovo}>
+            O arquivo possui a extensão .mediacmb e deve ser aberto somente pelo botão Importar backup. Não é necessário visualizar seu conteúdo.
+          </Text>
         </View>
         <View style={styles.cardPerfilInfoNovo}>
           <Text style={styles.labelHeroNovo}>Licença</Text>
