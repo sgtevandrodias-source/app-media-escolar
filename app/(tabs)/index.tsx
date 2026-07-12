@@ -1790,49 +1790,84 @@ export default function HomeScreen() {
         share?: (dados?: ShareData) => Promise<void>;
       };
 
-      // Alguns navegadores Android recusam extensões personalizadas no Web Share.
-      // Para compartilhar, usamos um JSON comum; na opção Salvar no aparelho,
-      // continuamos usando a extensão própria .mediacmb.
+      if (typeof navegador.share !== "function") {
+        const desejaSalvar = window.confirm(
+          "Este navegador não oferece compartilhamento direto de arquivos. Deseja salvar o backup no aparelho para enviá-lo manualmente?",
+        );
+
+        if (desejaSalvar) {
+          salvarBackupNoAparelho();
+        } else {
+          setMensagem("Compartilhamento cancelado. Nenhum arquivo foi salvo.");
+        }
+        return;
+      }
+
+      // Extensão e MIME comuns aumentam a compatibilidade com WhatsApp,
+      // Gmail, Drive e outros destinos do menu nativo do celular.
       const nomeCompartilhamento = nomeArquivo.replace(/\.mediacmb$/i, ".json");
       const arquivoCompartilhamento = new File(
         [conteudo],
         nomeCompartilhamento,
         { type: "application/json" },
       );
-      const dadosCompartilhamento: ShareData = {
-        title: "Backup do Média CMB",
-        text: "Backup do Média CMB. Para restaurar, use Perfil > Importar backup.",
-        files: [arquivoCompartilhamento],
-      };
 
-      const aceitaArquivo =
-        typeof navegador.share === "function" &&
-        (typeof navegador.canShare !== "function" ||
-          navegador.canShare(dadosCompartilhamento));
+      // Alguns navegadores rejeitam a combinação de texto + arquivo, embora
+      // aceitem o mesmo arquivo sozinho. Tentamos primeiro a forma mais ampla.
+      const tentativas: ShareData[] = [
+        {
+          title: "Backup do Média CMB",
+          files: [arquivoCompartilhamento],
+        },
+        {
+          files: [arquivoCompartilhamento],
+        },
+      ];
 
-      if (aceitaArquivo && navegador.share) {
-        await navegador.share(dadosCompartilhamento);
-        setMensagem("Backup compartilhado com sucesso.");
-        return;
+      let ultimoErro: any = null;
+
+      for (const dados of tentativas) {
+        try {
+          // canShare é apenas uma indicação. Mesmo quando retorna falso em certos
+          // navegadores, a chamada share pode funcionar, por isso não bloqueamos.
+          await navegador.share(dados);
+          setMensagem("Backup compartilhado com sucesso.");
+          return;
+        } catch (erroTentativa: any) {
+          if (erroTentativa?.name === "AbortError") {
+            setMensagem("Compartilhamento cancelado.");
+            return;
+          }
+          ultimoErro = erroTentativa;
+        }
       }
 
-      salvarBackupNoAparelho();
-      Alert.alert(
-        "Compartilhamento indisponível",
-        "Este navegador não aceita o compartilhamento direto do arquivo. O backup foi salvo no aparelho para você enviar manualmente.",
+      console.log("Erro ao compartilhar backup:", ultimoErro);
+      const desejaSalvar = window.confirm(
+        "Não foi possível abrir o menu de compartilhamento neste navegador. Deseja salvar o backup no aparelho para enviá-lo manualmente?",
       );
+
+      if (desejaSalvar) {
+        salvarBackupNoAparelho();
+      } else {
+        setMensagem("Compartilhamento cancelado. Nenhum arquivo foi salvo.");
+      }
     } catch (erro: any) {
       if (erro?.name === "AbortError") {
         setMensagem("Compartilhamento cancelado.");
         return;
       }
 
-      console.log("Erro ao compartilhar backup:", erro);
-      salvarBackupNoAparelho();
-      Alert.alert(
-        "Backup salvo",
-        "Não foi possível abrir o menu de compartilhamento. O arquivo foi salvo no aparelho para envio manual.",
+      console.log("Erro ao preparar compartilhamento do backup:", erro);
+      const desejaSalvar = window.confirm(
+        "Não foi possível preparar o compartilhamento. Deseja salvar o backup no aparelho?",
       );
+
+      if (desejaSalvar) {
+        salvarBackupNoAparelho();
+      } else {
+        setMensagem("Operação cancelada. Nenhum arquivo foi salvo.");
+      }
     }
   }
 
