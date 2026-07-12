@@ -833,6 +833,65 @@ function confirmarAcao(titulo: string, mensagem: string): Promise<boolean> {
   });
 }
 
+function carregarScriptExterno(src: string, id: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof document === "undefined") {
+      reject(new Error("Documento indisponível para carregar o gerador de PDF."));
+      return;
+    }
+
+    const existente = document.getElementById(id) as HTMLScriptElement | null;
+    if (existente?.dataset.carregado === "true") {
+      resolve();
+      return;
+    }
+
+    if (existente) {
+      existente.addEventListener("load", () => resolve(), { once: true });
+      existente.addEventListener(
+        "error",
+        () => reject(new Error(`Falha ao carregar ${id}.`)),
+        { once: true },
+      );
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = id;
+    script.src = src;
+    script.async = true;
+    script.onload = () => {
+      script.dataset.carregado = "true";
+      resolve();
+    };
+    script.onerror = () => reject(new Error(`Falha ao carregar ${id}.`));
+    document.head.appendChild(script);
+  });
+}
+
+async function carregarBibliotecasPdf() {
+  await carregarScriptExterno(
+    "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js",
+    "media-cmb-jspdf",
+  );
+
+  await carregarScriptExterno(
+    "https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js",
+    "media-cmb-jspdf-autotable",
+  );
+
+  const janelaPdf = window as typeof window & {
+    jspdf?: { jsPDF?: new (opcoes?: any) => any };
+  };
+
+  const jsPDF = janelaPdf.jspdf?.jsPDF;
+  if (!jsPDF) {
+    throw new Error("O gerador de PDF não foi carregado corretamente.");
+  }
+
+  return jsPDF;
+}
+
 export default function HomeScreen() {
   const [filhos, setFilhos] = useState<Filho[]>([
     criarFilho("Aluno 1", "7EF", turmaPadrao("7EF")),
@@ -2904,11 +2963,7 @@ export default function HomeScreen() {
     try {
       setMensagem("Gerando PDF para compartilhamento...");
 
-      const [{ jsPDF }, moduloAutoTable] = await Promise.all([
-        import("jspdf"),
-        import("jspdf-autotable"),
-      ]);
-      const autoTable = moduloAutoTable.default;
+      const jsPDF = await carregarBibliotecasPdf();
       const documento = new jsPDF({
         orientation: "landscape",
         unit: "mm",
@@ -2980,7 +3035,7 @@ export default function HomeScreen() {
           yAtual,
         );
 
-        autoTable(documento, {
+        documento.autoTable({
           startY: yAtual + 3,
           head: [
             [
@@ -3058,7 +3113,7 @@ export default function HomeScreen() {
       }
       console.log("Erro ao compartilhar boletim:", erro);
       setMensagem(
-        "Não foi possível gerar o PDF compartilhável. Confirme se as dependências jspdf e jspdf-autotable foram instaladas.",
+        "Não foi possível gerar o PDF compartilhável. Verifique a conexão com a internet e tente novamente.",
       );
     }
   }
