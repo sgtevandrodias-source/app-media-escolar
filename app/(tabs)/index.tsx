@@ -19,6 +19,7 @@ type SerieEscolar = "6EF" | "7EF" | "8EF" | "9EF" | "1EM" | "2EM" | "3EM";
 type ModoFormulario = "novo" | "editar" | null;
 type AbaApp =
   | "selecao"
+  | "painel"
   | "inicio"
   | "notas"
   | "planejamento"
@@ -829,12 +830,10 @@ export default function HomeScreen() {
     useState<Trimestre>("t1");
   const [npDesejada, setNpDesejada] = useState("8.0");
   const [disciplinaSimulador, setDisciplinaSimulador] = useState(0);
-  const [trimestreSimulador, setTrimestreSimulador] =
-    useState<Trimestre>("t1");
+  const [trimestreSimulador, setTrimestreSimulador] = useState<Trimestre>("t1");
   const [notasSimuladas, setNotasSimuladas] =
     useState<NotasTrimestre>(criarTrimestre());
-  const [mediaDesejadaSimulador, setMediaDesejadaSimulador] =
-    useState("6.0");
+  const [mediaDesejadaSimulador, setMediaDesejadaSimulador] = useState("6.0");
   const [dadosCarregados, setDadosCarregados] = useState(false);
   const [modoFormulario, setModoFormulario] = useState<ModoFormulario>(null);
   const [nomeFormulario, setNomeFormulario] = useState("");
@@ -1046,6 +1045,55 @@ export default function HomeScreen() {
   }, null);
   const disciplinasSemNotas =
     filho.disciplinas.length - disciplinasComNotas.length;
+  const resumoGeralAlunos = filhos
+    .map((item, index) => {
+      const anosDisponiveis = item.anosLetivos ?? {};
+      const anoAtivo =
+        item.anoLetivoAtivo && anosDisponiveis[item.anoLetivoAtivo]
+          ? item.anoLetivoAtivo
+          : (Object.keys(anosDisponiveis).sort().at(-1) ?? ANO_LETIVO_PADRAO);
+      const dadosAno = obterDadosAnoLetivo(item, anoAtivo);
+      const alunoVisual: Filho = {
+        ...item,
+        serie: dadosAno.serie,
+        turma: dadosAno.turma,
+        disciplinas: dadosAno.disciplinas,
+      };
+      const media = calcularMediaGeralAluno(alunoVisual);
+      const resumo = calcularResumoDisciplinas(alunoVisual);
+      const disciplinasComNota = resumo.filter((disc) => disc.media !== null);
+      const emAtencao = disciplinasComNota.filter(
+        (disc) => (disc.media ?? 10) < 6,
+      ).length;
+
+      return {
+        index,
+        aluno: alunoVisual,
+        anoAtivo,
+        media,
+        emAtencao,
+        disciplinasComNota: disciplinasComNota.length,
+        classificacao: obterClassificacao(media),
+      };
+    })
+    .sort((a, b) => {
+      if (a.media === null && b.media === null)
+        return a.aluno.nome.localeCompare(b.aluno.nome, "pt-BR");
+      if (a.media === null) return 1;
+      if (b.media === null) return -1;
+      return b.media - a.media;
+    });
+  const alunosComMedia = resumoGeralAlunos.filter(
+    (item) => item.media !== null,
+  );
+  const alunosEmAtencaoGeral = resumoGeralAlunos.filter(
+    (item) => item.media !== null && (item.media ?? 10) < 6,
+  );
+  const melhorAlunoGeral = alunosComMedia[0] ?? null;
+  const totalDisciplinasEmAtencao = resumoGeralAlunos.reduce(
+    (total, item) => total + item.emAtencao,
+    0,
+  );
   const npDesejadaNumero = textoParaNumero(npDesejada) ?? 8.0;
   const disciplinaBaseSimulador =
     filho.disciplinas[disciplinaSimulador] ?? filho.disciplinas[0];
@@ -1078,8 +1126,7 @@ export default function HomeScreen() {
   const mediaAnualSimulada = calcularMediaFinalParcial(
     disciplinaCalculadaSimulador,
   );
-  const mediaDesejadaNumero =
-    textoParaNumero(mediaDesejadaSimulador) ?? 6.0;
+  const mediaDesejadaNumero = textoParaNumero(mediaDesejadaSimulador) ?? 6.0;
   const diferencaMetaSimulador =
     mediaAnualSimulada === null
       ? null
@@ -1088,10 +1135,7 @@ export default function HomeScreen() {
   const scrollPrincipalRef = useRef<ScrollView>(null);
   const carrosselAlunosRef = useRef<ScrollView>(null);
 
-  function atualizarCampoSimulacao(
-    campo: keyof NotasTrimestre,
-    valor: string,
-  ) {
+  function atualizarCampoSimulacao(campo: keyof NotasTrimestre, valor: string) {
     setNotasSimuladas((atual) => ({
       ...atual,
       [campo]: normalizarEntradaNota(valor),
@@ -2296,6 +2340,7 @@ export default function HomeScreen() {
   function renderMenuInferior() {
     const itens: { aba: AbaApp; rotulo: string; icone: string }[] = [
       { aba: "selecao", rotulo: "Alunos", icone: "☰" },
+      { aba: "painel", rotulo: "Painel", icone: "▦" },
       { aba: "inicio", rotulo: "Início", icone: "⌂" },
       { aba: "notas", rotulo: "Notas", icone: "★" },
       { aba: "planejamento", rotulo: "Plano", icone: "□" },
@@ -2537,6 +2582,194 @@ export default function HomeScreen() {
       </>
     );
   }
+  function abrirAlunoNoPainel(indice: number) {
+    const alunoEscolhido = filhos[indice];
+    if (!alunoEscolhido) return;
+
+    setFilhoSelecionado(indice);
+    setDisciplinaSelecionada(0);
+    setTrimestreSelecionado("t1");
+    setMensagem("");
+    setAbaAtiva("inicio");
+  }
+
+  function renderPainelGeral() {
+    return (
+      <>
+        <View style={styles.cardPainelGeralTopoNovo}>
+          <Text style={styles.labelHeroNovo}>Painel geral</Text>
+          <Text style={styles.tituloPainelGeralNovo}>Visão da família</Text>
+          <Text style={styles.infoPainelGeralNovo}>
+            Compare o desempenho dos alunos e identifique rapidamente quem
+            precisa de mais atenção.
+          </Text>
+
+          <View style={styles.gradeIndicadoresPainelNovo}>
+            <View style={styles.cardIndicadorPainelNovo}>
+              <Text style={styles.indicadorPainelLabelNovo}>Alunos</Text>
+              <Text style={styles.indicadorPainelValorNovo}>
+                {filhos.length}
+              </Text>
+              <Text style={styles.indicadorPainelSubNovo}>cadastrados</Text>
+            </View>
+
+            <View style={styles.cardIndicadorPainelNovo}>
+              <Text style={styles.indicadorPainelLabelNovo}>Em atenção</Text>
+              <Text
+                style={[
+                  styles.indicadorPainelValorNovo,
+                  alunosEmAtencaoGeral.length > 0 &&
+                    styles.valorAtencaoCentralNovo,
+                ]}
+              >
+                {alunosEmAtencaoGeral.length}
+              </Text>
+              <Text style={styles.indicadorPainelSubNovo}>
+                média abaixo de 6
+              </Text>
+            </View>
+
+            <View style={styles.cardIndicadorPainelNovo}>
+              <Text style={styles.indicadorPainelLabelNovo}>Alertas</Text>
+              <Text
+                style={[
+                  styles.indicadorPainelValorNovo,
+                  totalDisciplinasEmAtencao > 0 &&
+                    styles.valorAtencaoCentralNovo,
+                ]}
+              >
+                {totalDisciplinasEmAtencao}
+              </Text>
+              <Text style={styles.indicadorPainelSubNovo}>
+                disciplinas abaixo de 6
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.cardMelhorAlunoPainelNovo}>
+          <Text style={styles.labelHeroNovo}>Melhor desempenho geral</Text>
+          {melhorAlunoGeral ? (
+            <View style={styles.linhaMelhorAlunoPainelNovo}>
+              <View style={styles.avatarPainelNovo}>
+                {melhorAlunoGeral.aluno.fotoUri ? (
+                  <Image
+                    source={{ uri: melhorAlunoGeral.aluno.fotoUri }}
+                    style={styles.avatarImagemPainelNovo}
+                  />
+                ) : (
+                  <Text style={styles.avatarTextoPainelNovo}>
+                    {obterIniciais(melhorAlunoGeral.aluno.nome)}
+                  </Text>
+                )}
+              </View>
+              <View style={styles.infoMelhorAlunoPainelNovo}>
+                <Text style={styles.nomeMelhorAlunoPainelNovo}>
+                  {melhorAlunoGeral.aluno.nome}
+                </Text>
+                <Text style={styles.dadosMelhorAlunoPainelNovo}>
+                  {obterRotuloSerie(melhorAlunoGeral.aluno.serie)} • Turma{" "}
+                  {melhorAlunoGeral.aluno.turma}
+                </Text>
+              </View>
+              <Text style={styles.mediaMelhorAlunoPainelNovo}>
+                {mostrarNota(melhorAlunoGeral.media)}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.painelSemDadosNovo}>
+              Lance notas para visualizar o melhor desempenho.
+            </Text>
+          )}
+        </View>
+
+        <View style={styles.cardListaPainelNovo}>
+          <View style={styles.cardTopoLinhaNovo}>
+            <View>
+              <Text style={styles.tituloSecaoNovo}>
+                Classificação dos alunos
+              </Text>
+              <Text style={styles.infoInicioNovo}>
+                Ordenação automática da maior para a menor média.
+              </Text>
+            </View>
+            <Text style={styles.badgeSerieNovo}>{filhos.length} aluno(s)</Text>
+          </View>
+
+          <View style={styles.listaRankingPainelNovo}>
+            {resumoGeralAlunos.map((item, posicao) => (
+              <Pressable
+                key={item.aluno.id}
+                style={styles.cardAlunoPainelNovo}
+                onPress={() => abrirAlunoNoPainel(item.index)}
+              >
+                <View style={styles.posicaoPainelNovo}>
+                  <Text style={styles.posicaoPainelTextoNovo}>
+                    {posicao + 1}
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.avatarAlunoPainelNovo,
+                    { backgroundColor: item.classificacao.corAvatar },
+                  ]}
+                >
+                  {item.aluno.fotoUri ? (
+                    <Image
+                      source={{ uri: item.aluno.fotoUri }}
+                      style={styles.avatarImagemPainelNovo}
+                    />
+                  ) : (
+                    <Text style={styles.avatarAlunoPainelTextoNovo}>
+                      {obterIniciais(item.aluno.nome)}
+                    </Text>
+                  )}
+                </View>
+
+                <View style={styles.infoAlunoPainelNovo}>
+                  <Text style={styles.nomeAlunoPainelNovo}>
+                    {item.aluno.nome}
+                  </Text>
+                  <Text style={styles.dadosAlunoPainelNovo}>
+                    {obterRotuloSerie(item.aluno.serie)} • Turma{" "}
+                    {item.aluno.turma} • {item.anoAtivo}
+                  </Text>
+                  <Text style={styles.alertaAlunoPainelNovo}>
+                    {item.emAtencao > 0
+                      ? `${item.emAtencao} disciplina(s) abaixo de 6,0`
+                      : item.disciplinasComNota > 0
+                        ? "Sem disciplinas abaixo de 6,0"
+                        : "Sem notas lançadas"}
+                  </Text>
+                </View>
+
+                <View style={styles.areaMediaAlunoPainelNovo}>
+                  <Text
+                    style={[
+                      styles.mediaAlunoPainelNovo,
+                      { color: item.classificacao.corTexto },
+                    ]}
+                  >
+                    {mostrarNota(item.media)}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.statusAlunoPainelNovo,
+                      { color: item.classificacao.corTexto },
+                    ]}
+                  >
+                    {item.classificacao.titulo}
+                  </Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      </>
+    );
+  }
+
   function renderInicio() {
     return (
       <>
@@ -3235,8 +3468,8 @@ export default function HomeScreen() {
             Teste cenários sem alterar as notas reais
           </Text>
           <Text style={styles.infoSimuladorNovo}>
-            Escolha uma disciplina e um trimestre. Os valores informados aqui são
-            temporários e não são gravados no cadastro do aluno.
+            Escolha uma disciplina e um trimestre. Os valores informados aqui
+            são temporários e não são gravados no cadastro do aluno.
           </Text>
         </View>
 
@@ -3275,8 +3508,7 @@ export default function HomeScreen() {
                 key={item}
                 style={[
                   styles.trimestreBotaoNovo,
-                  trimestreSimulador === item &&
-                    styles.trimestreBotaoAtivoNovo,
+                  trimestreSimulador === item && styles.trimestreBotaoAtivoNovo,
                 ]}
                 onPress={() => trocarTrimestreSimulador(item)}
               >
@@ -3359,7 +3591,9 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.linhaResumoNotasNovo}>
-            <Text style={styles.resumoNotasLabelNovo}>Média simulada das APs</Text>
+            <Text style={styles.resumoNotasLabelNovo}>
+              Média simulada das APs
+            </Text>
             <Text style={styles.resumoNotasValorNovo}>
               {mostrarNota(mediaAPSimulada)}
             </Text>
@@ -3367,7 +3601,9 @@ export default function HomeScreen() {
 
           <Text style={styles.labelSelecaoNovo}>GIP</Text>
           <View style={styles.caixaGipNovo}>
-            <Text style={styles.gipLabelNovo}>Pontuação adicional hipotética</Text>
+            <Text style={styles.gipLabelNovo}>
+              Pontuação adicional hipotética
+            </Text>
             <TextInput
               style={styles.inputGipNovo}
               value={notasSimuladas.gip}
@@ -3382,7 +3618,9 @@ export default function HomeScreen() {
             <>
               <Text style={styles.labelSelecaoNovo}>AE</Text>
               <View style={styles.caixaNotaEditavelCheiaNovo}>
-                <Text style={styles.miniLabelNotasNovo}>Nota hipotética da AE</Text>
+                <Text style={styles.miniLabelNotasNovo}>
+                  Nota hipotética da AE
+                </Text>
                 <TextInput
                   style={styles.inputNotaGrandeNovo}
                   value={notasSimuladas.ae}
@@ -3949,9 +4187,10 @@ export default function HomeScreen() {
           { width: larguraConteudo, alignSelf: "center" },
         ]}
       >
-        {abaAtiva !== "selecao" && renderCabecalho()}
+        {abaAtiva !== "selecao" && abaAtiva !== "painel" && renderCabecalho()}
 
         {abaAtiva === "selecao" && renderSelecaoAluno()}
+        {abaAtiva === "painel" && renderPainelGeral()}
         {abaAtiva === "inicio" && renderInicio()}
         {abaAtiva === "notas" && renderNotas()}
         {abaAtiva === "planejamento" && renderPlanejamento()}
@@ -6587,4 +6826,204 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
 
+  cardPainelGeralTopoNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 26,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+    elevation: 3,
+  },
+  tituloPainelGeralNovo: {
+    marginTop: 6,
+    fontSize: 28,
+    color: "#0037b0",
+    fontWeight: "bold",
+  },
+  infoPainelGeralNovo: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#64748b",
+    lineHeight: 20,
+    fontWeight: "600",
+  },
+  gradeIndicadoresPainelNovo: {
+    marginTop: 18,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  cardIndicadorPainelNovo: {
+    flexGrow: 1,
+    flexBasis: 150,
+    minHeight: 112,
+    backgroundColor: "#f8fafc",
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  indicadorPainelLabelNovo: {
+    fontSize: 11,
+    color: "#64748b",
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  indicadorPainelValorNovo: {
+    marginTop: 5,
+    fontSize: 34,
+    color: "#0037b0",
+    fontWeight: "bold",
+  },
+  indicadorPainelSubNovo: {
+    marginTop: 2,
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  cardMelhorAlunoPainelNovo: {
+    marginTop: 18,
+    backgroundColor: "#ecfdf5",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    elevation: 2,
+  },
+  linhaMelhorAlunoPainelNovo: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  avatarPainelNovo: {
+    width: 62,
+    height: 62,
+    borderRadius: 20,
+    backgroundColor: "#16a34a",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarImagemPainelNovo: {
+    width: "100%",
+    height: "100%",
+  },
+  avatarTextoPainelNovo: {
+    color: "#ffffff",
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  infoMelhorAlunoPainelNovo: {
+    flex: 1,
+  },
+  nomeMelhorAlunoPainelNovo: {
+    fontSize: 20,
+    color: "#111827",
+    fontWeight: "bold",
+  },
+  dadosMelhorAlunoPainelNovo: {
+    marginTop: 3,
+    fontSize: 13,
+    color: "#475569",
+    fontWeight: "600",
+  },
+  mediaMelhorAlunoPainelNovo: {
+    fontSize: 38,
+    color: "#166534",
+    fontWeight: "bold",
+  },
+  painelSemDadosNovo: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#64748b",
+    lineHeight: 20,
+    fontWeight: "600",
+  },
+  cardListaPainelNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 26,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 2,
+  },
+  listaRankingPainelNovo: {
+    marginTop: 16,
+    gap: 10,
+  },
+  cardAlunoPainelNovo: {
+    minHeight: 92,
+    backgroundColor: "#f8fafc",
+    borderRadius: 20,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  posicaoPainelNovo: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#dbeafe",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  posicaoPainelTextoNovo: {
+    color: "#0037b0",
+    fontSize: 13,
+    fontWeight: "bold",
+  },
+  avatarAlunoPainelNovo: {
+    width: 52,
+    height: 52,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarAlunoPainelTextoNovo: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  infoAlunoPainelNovo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  nomeAlunoPainelNovo: {
+    fontSize: 16,
+    color: "#111827",
+    fontWeight: "bold",
+  },
+  dadosAlunoPainelNovo: {
+    marginTop: 2,
+    fontSize: 11,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  alertaAlunoPainelNovo: {
+    marginTop: 4,
+    fontSize: 11,
+    color: "#475569",
+    fontWeight: "600",
+  },
+  areaMediaAlunoPainelNovo: {
+    alignItems: "flex-end",
+    minWidth: 65,
+  },
+  mediaAlunoPainelNovo: {
+    fontSize: 28,
+    fontWeight: "bold",
+  },
+  statusAlunoPainelNovo: {
+    marginTop: 1,
+    fontSize: 10,
+    fontWeight: "bold",
+  },
 });
