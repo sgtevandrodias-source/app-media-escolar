@@ -636,6 +636,20 @@ function mostrarNota(nota: number | null) {
   return nota.toFixed(1);
 }
 
+function escaparHtml(valor: unknown) {
+  return String(valor ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function formatarValorBoletim(valor: string) {
+  const numero = textoParaNumero(valor);
+  return numero === null ? "—" : numero.toFixed(1);
+}
+
 function obterSiglaDisciplina(nome: string) {
   const siglas: Record<string, string> = {
     "Arte I": "ART",
@@ -2762,7 +2776,8 @@ export default function HomeScreen() {
                 <View
                   style={[
                     styles.areaMediaAlunoPainelNovo,
-                    larguraTela < 480 && styles.areaMediaAlunoPainelCompactoNovo,
+                    larguraTela < 480 &&
+                      styles.areaMediaAlunoPainelCompactoNovo,
                   ]}
                 >
                   <Text
@@ -2787,6 +2802,205 @@ export default function HomeScreen() {
           </View>
         </View>
       </>
+    );
+  }
+
+  function gerarBoletimDetalhado() {
+    if (Platform.OS !== "web" || typeof window === "undefined") {
+      setMensagem(
+        "A geração do boletim em PDF está disponível na versão web/PWA do Média CMB.",
+      );
+      return;
+    }
+
+    const janelaBoletim = window.open("", "_blank", "noopener,noreferrer");
+
+    if (!janelaBoletim) {
+      setMensagem(
+        "O navegador bloqueou a abertura do boletim. Permita pop-ups para o Média CMB e tente novamente.",
+      );
+      return;
+    }
+
+    const dataEmissao = new Date().toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    const classificacaoAluno = obterClassificacao(mediaGeralAluno);
+    const fotoAluno = filho.fotoUri
+      ? `<img class="foto-aluno" src="${escaparHtml(filho.fotoUri)}" alt="Foto do aluno" />`
+      : `<div class="foto-iniciais">${escaparHtml(obterIniciais(filho.nome))}</div>`;
+
+    const disciplinasHtml = filho.disciplinas
+      .map((disciplinaAtual) => {
+        const mediaDisciplina = calcularMediaFinalParcial(disciplinaAtual);
+        const classificacao = obterClassificacao(mediaDisciplina);
+
+        const linhasTrimestres = (["t1", "t2", "t3"] as Trimestre[])
+          .map((trimestreAtual) => {
+            const notas = disciplinaAtual.trimestres[trimestreAtual];
+            const mediaAps = calcularMediaAP(notas);
+            const npAtual = calcularNP(disciplinaAtual, notas);
+            const nprAtual = calcularNPR(disciplinaAtual, notas);
+            const considerada = calcularNotaConsiderada(disciplinaAtual, notas);
+
+            return `
+              <tr>
+                <td class="col-trimestre">${escaparHtml(tituloTrimestre(trimestreAtual))}</td>
+                <td>${formatarValorBoletim(notas.ap1)}</td>
+                <td>${formatarValorBoletim(notas.ap2)}</td>
+                <td>${mediaAps === null ? "—" : mediaAps.toFixed(1)}</td>
+                <td>${formatarValorBoletim(notas.gip)}</td>
+                <td>${disciplinaAtual.usaAE ? formatarValorBoletim(notas.ae) : "N/A"}</td>
+                <td>${npAtual === null ? "—" : npAtual.toFixed(1)}</td>
+                <td>${formatarValorBoletim(notas.ar)}</td>
+                <td>${nprAtual === null ? "—" : nprAtual.toFixed(1)}</td>
+                <td class="nota-considerada">${considerada === null ? "—" : considerada.toFixed(1)}</td>
+              </tr>`;
+          })
+          .join("");
+
+        return `
+          <section class="disciplina">
+            <div class="disciplina-cabecalho">
+              <div>
+                <div class="disciplina-nome">${escaparHtml(disciplinaAtual.nome)}</div>
+                <div class="disciplina-sigla">${escaparHtml(obterSiglaDisciplina(disciplinaAtual.nome))}</div>
+              </div>
+              <div class="disciplina-resumo">
+                <span class="media-disciplina">${mediaDisciplina === null ? "Pendente" : mediaDisciplina.toFixed(1)}</span>
+                <span class="situacao-disciplina">${escaparHtml(classificacao.titulo)}</span>
+              </div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Trimestre</th>
+                  <th>AP.1</th>
+                  <th>AP.2</th>
+                  <th>Média AP</th>
+                  <th>GIP</th>
+                  <th>AE</th>
+                  <th>NP</th>
+                  <th>AR</th>
+                  <th>NPR</th>
+                  <th>Considerada</th>
+                </tr>
+              </thead>
+              <tbody>${linhasTrimestres}</tbody>
+            </table>
+          </section>`;
+      })
+      .join("");
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Boletim detalhado - ${escaparHtml(filho.nome)}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111827; background: #fff; }
+    .pagina { max-width: 1120px; margin: 0 auto; padding: 24px; }
+    .topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; border-bottom: 4px solid #0037b0; padding-bottom: 16px; }
+    .marca h1 { margin: 0; color: #0037b0; font-size: 28px; }
+    .marca p { margin: 5px 0 0; color: #64748b; font-size: 13px; }
+    .emissao { text-align: right; font-size: 12px; color: #475569; }
+    .aluno { margin-top: 18px; display: flex; gap: 16px; align-items: center; padding: 16px; background: #f8fafc; border: 1px solid #dbeafe; border-radius: 14px; }
+    .foto-aluno, .foto-iniciais { width: 74px; height: 74px; border-radius: 18px; object-fit: cover; flex: 0 0 auto; }
+    .foto-iniciais { display: flex; align-items: center; justify-content: center; background: #0037b0; color: white; font-size: 24px; font-weight: 700; }
+    .dados-aluno { flex: 1; }
+    .dados-aluno h2 { margin: 0 0 5px; font-size: 23px; }
+    .dados-aluno p { margin: 2px 0; color: #475569; font-size: 13px; }
+    .resumo-geral { min-width: 150px; text-align: right; }
+    .resumo-geral .rotulo { display: block; color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: .5px; }
+    .resumo-geral .media { display: block; margin-top: 2px; color: #0037b0; font-size: 34px; font-weight: 800; }
+    .resumo-geral .status { color: #475569; font-size: 12px; font-weight: 700; }
+    .legenda { margin: 14px 0 18px; color: #64748b; font-size: 11px; line-height: 1.5; }
+    .disciplina { margin: 0 0 16px; border: 1px solid #cbd5e1; border-radius: 12px; overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
+    .disciplina-cabecalho { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 13px; background: #eff6ff; border-bottom: 1px solid #bfdbfe; }
+    .disciplina-nome { color: #0037b0; font-size: 16px; font-weight: 800; }
+    .disciplina-sigla { margin-top: 2px; color: #64748b; font-size: 10px; font-weight: 700; }
+    .disciplina-resumo { text-align: right; }
+    .media-disciplina { display: block; color: #0037b0; font-size: 20px; font-weight: 800; }
+    .situacao-disciplina { color: #475569; font-size: 10px; font-weight: 700; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    th, td { border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; padding: 7px 5px; text-align: center; font-size: 10px; }
+    th:last-child, td:last-child { border-right: 0; }
+    tbody tr:last-child td { border-bottom: 0; }
+    th { background: #f8fafc; color: #334155; font-size: 9px; text-transform: uppercase; }
+    .col-trimestre { width: 15%; text-align: left; font-weight: 700; }
+    .nota-considerada { background: #ecfdf5; color: #166534; font-weight: 800; }
+    .rodape { margin-top: 18px; padding-top: 12px; border-top: 1px solid #cbd5e1; color: #64748b; font-size: 10px; text-align: center; }
+    .acoes { position: sticky; top: 0; z-index: 2; display: flex; justify-content: flex-end; gap: 8px; padding: 10px 0; background: rgba(255,255,255,.96); }
+    .acoes button { border: 0; border-radius: 10px; padding: 10px 14px; cursor: pointer; font-weight: 700; }
+    .imprimir { background: #0037b0; color: white; }
+    .fechar { background: #e2e8f0; color: #334155; }
+    @page { size: A4 landscape; margin: 10mm; }
+    @media print {
+      .pagina { max-width: none; padding: 0; }
+      .acoes { display: none !important; }
+      .disciplina { margin-bottom: 10px; }
+      body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    }
+    @media (max-width: 700px) {
+      .pagina { padding: 12px; }
+      .topo, .aluno { flex-direction: column; align-items: flex-start; }
+      .emissao, .resumo-geral { text-align: left; }
+      .disciplina { overflow-x: auto; }
+      table { min-width: 880px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="pagina">
+    <div class="acoes">
+      <button class="fechar" onclick="window.close()">Fechar</button>
+      <button class="imprimir" onclick="window.print()">Salvar como PDF / Imprimir</button>
+    </div>
+    <header class="topo">
+      <div class="marca">
+        <h1>Média CMB</h1>
+        <p>Boletim escolar detalhado</p>
+      </div>
+      <div class="emissao">
+        <strong>Emitido em</strong><br />${escaparHtml(dataEmissao)}
+      </div>
+    </header>
+    <section class="aluno">
+      ${fotoAluno}
+      <div class="dados-aluno">
+        <h2>${escaparHtml(filho.nome)}</h2>
+        <p><strong>Série:</strong> ${escaparHtml(obterRotuloSerie(filho.serie))}</p>
+        <p><strong>Turma:</strong> ${escaparHtml(filho.turma)} &nbsp; <strong>Ano letivo:</strong> ${escaparHtml(anoLetivoSelecionado)}</p>
+      </div>
+      <div class="resumo-geral">
+        <span class="rotulo">Média geral</span>
+        <span class="media">${mediaGeralAluno === null ? "Pendente" : mediaGeralAluno.toFixed(1)}</span>
+        <span class="status">${escaparHtml(classificacaoAluno.titulo)} — ${escaparHtml(classificacaoAluno.mensagem)}</span>
+      </div>
+    </section>
+    <div class="legenda">
+      Campos ainda não preenchidos aparecem como “—”. Disciplinas sem AE exibem “N/A”. A nota considerada corresponde ao maior valor entre NP e NPR quando houver recuperação.
+    </div>
+    ${disciplinasHtml}
+    <footer class="rodape">
+      Relatório gerado localmente pelo Média CMB. Nenhum dado deste boletim foi enviado para servidor.
+    </footer>
+  </main>
+</body>
+</html>`;
+
+    janelaBoletim.document.open();
+    janelaBoletim.document.write(html);
+    janelaBoletim.document.close();
+    setMensagem(
+      "Boletim aberto em uma nova aba. Use “Salvar como PDF / Imprimir” para gerar o arquivo.",
     );
   }
 
@@ -2927,6 +3141,19 @@ export default function HomeScreen() {
               <Text style={styles.tituloAtalhoCentralNovo}>Planejar AE</Text>
               <Text style={styles.infoAtalhoCentralNovo}>
                 Calcule a nota necessária.
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.botaoAtalhoCentralNovo}
+              onPress={gerarBoletimDetalhado}
+            >
+              <Text style={styles.iconeAtalhoCentralNovo}>▤</Text>
+              <Text style={styles.tituloAtalhoCentralNovo}>
+                Boletim detalhado
+              </Text>
+              <Text style={styles.infoAtalhoCentralNovo}>
+                Gere e salve o relatório em PDF.
               </Text>
             </Pressable>
           </View>
