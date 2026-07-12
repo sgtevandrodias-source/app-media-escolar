@@ -945,6 +945,8 @@ export default function HomeScreen() {
   const { width: larguraTela } = useWindowDimensions();
   const larguraConteudo = Math.min(Math.max(larguraTela - 40, 280), 720);
   const larguraSlideAluno = Math.min(Math.max(larguraTela - 40, 280), 520);
+  const larguraInternaConteudo = Math.max(larguraConteudo - 40, 240);
+  const larguraCardVisaoNotas = Math.max((larguraInternaConteudo - 16) / 3, 76);
   const larguraCardAlunoInicio = Math.min(
     Math.max(larguraTela - 72, 260),
     500,
@@ -2424,12 +2426,6 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          <Pressable
-            style={styles.botaoConfigNovo}
-            onPress={() => setAbaAtiva("perfil")}
-          >
-            <Text style={styles.botaoConfigTextoNovo}>⚙</Text>
-          </Pressable>
         </View>
 
         <View style={styles.cardHeroAlunoNovo}>
@@ -3346,23 +3342,17 @@ export default function HomeScreen() {
             <View style={styles.textosMarcaInicioNovo}>
               <Text style={styles.tituloMarcaInicioNovo}>Média CMB</Text>
               <Text style={styles.subtituloMarcaInicioNovo}>
-                Acompanhamento escolar da família
+                Acompanhamento de notas e desempenho escolar
               </Text>
             </View>
           </View>
 
-          <Pressable
-            style={styles.botaoConfigInicioNovo}
-            onPress={() => setAbaAtiva("perfil")}
-          >
-            <Text style={styles.botaoConfigInicioTextoNovo}>⚙</Text>
-          </Pressable>
         </View>
 
         <View style={styles.cardBoasVindasFamiliaNovo}>
-          <Text style={styles.saudacaoFamiliaNovo}>Olá, família!</Text>
+          <Text style={styles.saudacaoFamiliaNovo}>Olá!</Text>
           <Text style={styles.descricaoFamiliaNovo}>
-            Veja rapidamente como estão os alunos acompanhados neste aparelho.
+            Neste app você consegue lançar, consultar e simular notas e cenários, gerenciando de forma efetiva as médias, metas e resultados escolares.
           </Text>
 
           <View style={styles.gradeResumoFamiliaNovo}>
@@ -3759,6 +3749,7 @@ export default function HomeScreen() {
                 style={[
                   styles.cardVisaoDisciplinaNovo,
                   {
+                    width: larguraCardVisaoNotas,
                     backgroundColor: item.classificacao.corFundo,
                     borderColor: item.classificacao.corBorda,
                   },
@@ -8400,14 +8391,13 @@ const styles = StyleSheet.create({
     marginTop: 18,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: 8,
   },
   cardVisaoDisciplinaNovo: {
-    width: "31.2%",
-    minHeight: 150,
-    borderRadius: 20,
+    minHeight: 144,
+    borderRadius: 18,
     borderWidth: 1,
-    padding: 12,
+    padding: 10,
     justifyContent: "space-between",
     elevation: 1,
   },
@@ -8416,8 +8406,8 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   mediaVisaoDisciplinaNovo: {
-    marginTop: 8,
-    fontSize: 30,
+    marginTop: 7,
+    fontSize: 28,
     fontWeight: "bold",
   },
   statusVisaoDisciplinaNovo: {
