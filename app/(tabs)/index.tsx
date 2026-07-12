@@ -19,6 +19,7 @@ type SerieEscolar = "6EF" | "7EF" | "8EF" | "9EF" | "1EM" | "2EM" | "3EM";
 type ModoFormulario = "novo" | "editar" | null;
 type AbaApp = "inicio" | "alunos" | "notas" | "planejamento" | "perfil";
 type FerramentaPlanejamento = "ae" | "simulador";
+type VisualizacaoNotas = "visao" | "lancamento";
 
 type NotasTrimestre = {
   ap1: string;
@@ -903,6 +904,8 @@ export default function HomeScreen() {
   const [mediaDesejadaSimulador, setMediaDesejadaSimulador] = useState("6.0");
   const [ferramentaPlanejamento, setFerramentaPlanejamento] =
     useState<FerramentaPlanejamento>("ae");
+  const [visualizacaoNotas, setVisualizacaoNotas] =
+    useState<VisualizacaoNotas>("visao");
   const [dadosCarregados, setDadosCarregados] = useState(false);
   const [modoFormulario, setModoFormulario] = useState<ModoFormulario>(null);
   const [nomeFormulario, setNomeFormulario] = useState("");
@@ -2525,7 +2528,10 @@ export default function HomeScreen() {
                 styles.menuInferiorBotaoNovo,
                 ativo && styles.menuInferiorBotaoAtivoNovo,
               ]}
-              onPress={() => setAbaAtiva(item.aba)}
+              onPress={() => {
+                if (item.aba === "notas") setVisualizacaoNotas("visao");
+                setAbaAtiva(item.aba);
+              }}
             >
               <Text
                 style={[
@@ -2750,6 +2756,7 @@ export default function HomeScreen() {
     setDisciplinaSelecionada(0);
     setTrimestreSelecionado("t1");
     setMensagem("");
+    setVisualizacaoNotas("visao");
     setAbaAtiva("notas");
   }
 
@@ -3390,7 +3397,10 @@ export default function HomeScreen() {
 
             <Pressable
               style={styles.acaoRapidaFamiliaNovo}
-              onPress={() => setAbaAtiva("notas")}
+              onPress={() => {
+                setVisualizacaoNotas("visao");
+                setAbaAtiva("notas");
+              }}
             >
               <Text style={styles.iconeAcaoFamiliaNovo}>★</Text>
               <Text style={styles.textoAcaoFamiliaNovo}>Notas</Text>
@@ -3632,7 +3642,187 @@ export default function HomeScreen() {
     );
   }
 
+  function renderSeletorVisualizacaoNotas() {
+    return (
+      <View style={styles.seletorVisualizacaoNotasNovo}>
+        <Pressable
+          style={[
+            styles.botaoVisualizacaoNotasNovo,
+            visualizacaoNotas === "visao" &&
+              styles.botaoVisualizacaoNotasAtivoNovo,
+          ]}
+          onPress={() => setVisualizacaoNotas("visao")}
+        >
+          <Text
+            style={[
+              styles.textoVisualizacaoNotasNovo,
+              visualizacaoNotas === "visao" &&
+                styles.textoVisualizacaoNotasAtivoNovo,
+            ]}
+          >
+            Visão geral
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={[
+            styles.botaoVisualizacaoNotasNovo,
+            visualizacaoNotas === "lancamento" &&
+              styles.botaoVisualizacaoNotasAtivoNovo,
+          ]}
+          onPress={() => setVisualizacaoNotas("lancamento")}
+        >
+          <Text
+            style={[
+              styles.textoVisualizacaoNotasNovo,
+              visualizacaoNotas === "lancamento" &&
+                styles.textoVisualizacaoNotasAtivoNovo,
+            ]}
+          >
+            Lançar notas
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  function renderVisaoGeralNotas() {
+    return (
+      <>
+        <View style={styles.cardCabecalhoVisaoNotasNovo}>
+          <View style={styles.linhaCabecalhoVisaoNotasNovo}>
+            <View style={styles.infoCabecalhoVisaoNotasNovo}>
+              <Text style={styles.labelHeroNovo}>Visão geral</Text>
+              <Text style={styles.tituloVisaoNotasNovo}>{filho.nome}</Text>
+              <Text style={styles.subtituloVisaoNotasNovo}>
+                {obterRotuloSerie(filho.serie)} • Turma {filho.turma} • {anoLetivoSelecionado}
+              </Text>
+            </View>
+            <View style={styles.badgeMediaVisaoNotasNovo}>
+              <Text style={styles.badgeMediaVisaoNotasLabelNovo}>Média geral</Text>
+              <Text
+                style={[
+                  styles.badgeMediaVisaoNotasValorNovo,
+                  { color: classificacaoGeral.corTexto },
+                ]}
+              >
+                {mostrarNota(mediaGeralAluno)}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.textoExplicativoVisaoNotasNovo}>
+            A média geral considera todas as notas periódicas já lançadas nas disciplinas do aluno.
+          </Text>
+        </View>
+
+        {renderSeletorVisualizacaoNotas()}
+
+        <View style={styles.blocoSelecaoNovo}>
+          <Text style={styles.labelSelecaoNovo}>Trimestre para consulta</Text>
+          <View style={styles.trimestresNovo}>
+            {(["t1", "t2", "t3"] as Trimestre[]).map((trimestreItem) => (
+              <Pressable
+                key={trimestreItem}
+                style={[
+                  styles.trimestreBotaoNovo,
+                  trimestreSelecionado === trimestreItem &&
+                    styles.trimestreBotaoAtivoNovo,
+                ]}
+                onPress={() => setTrimestreSelecionado(trimestreItem)}
+              >
+                <Text
+                  style={[
+                    styles.trimestreTextoNovo,
+                    trimestreSelecionado === trimestreItem &&
+                      styles.trimestreTextoAtivoNovo,
+                  ]}
+                >
+                  {tituloTrimestre(trimestreItem)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.gradeVisaoDisciplinasNovo}>
+          {resumoDisciplinas.map((item, index) => {
+            const disciplinaAtual = filho.disciplinas[index];
+            const notaTrimestre = calcularNotaConsiderada(
+              disciplinaAtual,
+              disciplinaAtual.trimestres[trimestreSelecionado],
+            );
+
+            return (
+              <Pressable
+                key={item.nome}
+                style={[
+                  styles.cardVisaoDisciplinaNovo,
+                  {
+                    backgroundColor: item.classificacao.corFundo,
+                    borderColor: item.classificacao.corBorda,
+                  },
+                ]}
+                onPress={() => {
+                  setDisciplinaSelecionada(index);
+                  setVisualizacaoNotas("lancamento");
+                }}
+              >
+                <Text
+                  style={[
+                    styles.siglaVisaoDisciplinaNovo,
+                    { color: item.classificacao.corTexto },
+                  ]}
+                >
+                  {item.sigla}
+                </Text>
+                <Text
+                  style={[
+                    styles.mediaVisaoDisciplinaNovo,
+                    { color: item.classificacao.corTexto },
+                  ]}
+                >
+                  {mostrarNota(item.media)}
+                </Text>
+                <Text
+                  style={[
+                    styles.statusVisaoDisciplinaNovo,
+                    { color: item.classificacao.corTexto },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {item.classificacao.titulo}
+                </Text>
+                <View style={styles.divisorCardVisaoDisciplinaNovo} />
+                <Text style={styles.notaTrimestreVisaoDisciplinaNovo}>
+                  {tituloTrimestre(trimestreSelecionado)}: {mostrarNota(notaTrimestre)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View style={styles.caixaDicaVisaoNotasNovo}>
+          <Text style={styles.caixaDicaVisaoNotasTextoNovo}>
+            Toque em uma disciplina para abrir diretamente o lançamento detalhado das notas.
+          </Text>
+        </View>
+      </>
+    );
+  }
+
   function renderNotas() {
+    if (visualizacaoNotas === "visao") return renderVisaoGeralNotas();
+
+    return (
+      <>
+        {renderSeletorVisualizacaoNotas()}
+        {renderLancamentoNotas()}
+      </>
+    );
+  }
+
+  function renderLancamentoNotas() {
     return (
       <>
         <View style={styles.cardNotasAlunoNovo}>
@@ -8122,5 +8312,144 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textAlign: "center",
   },
+
+  seletorVisualizacaoNotasNovo: {
+    marginTop: 18,
+    padding: 5,
+    backgroundColor: "#ffffff",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+    flexDirection: "row",
+    gap: 6,
+  },
+  botaoVisualizacaoNotasNovo: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  botaoVisualizacaoNotasAtivoNovo: {
+    backgroundColor: "#dbeafe",
+  },
+  textoVisualizacaoNotasNovo: {
+    fontSize: 14,
+    color: "#64748b",
+    fontWeight: "bold",
+  },
+  textoVisualizacaoNotasAtivoNovo: {
+    color: "#0037b0",
+  },
+  cardCabecalhoVisaoNotasNovo: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 2,
+  },
+  linhaCabecalhoVisaoNotasNovo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  infoCabecalhoVisaoNotasNovo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  tituloVisaoNotasNovo: {
+    marginTop: 5,
+    fontSize: 24,
+    color: "#111827",
+    fontWeight: "bold",
+  },
+  subtituloVisaoNotasNovo: {
+    marginTop: 4,
+    fontSize: 13,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  badgeMediaVisaoNotasNovo: {
+    minWidth: 96,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: "#eff6ff",
+    alignItems: "center",
+  },
+  badgeMediaVisaoNotasLabelNovo: {
+    fontSize: 10,
+    color: "#64748b",
+    fontWeight: "bold",
+    textTransform: "uppercase",
+  },
+  badgeMediaVisaoNotasValorNovo: {
+    marginTop: 2,
+    fontSize: 28,
+    fontWeight: "bold",
+  },
+  textoExplicativoVisaoNotasNovo: {
+    marginTop: 16,
+    fontSize: 14,
+    color: "#475569",
+    lineHeight: 21,
+  },
+  gradeVisaoDisciplinasNovo: {
+    marginTop: 18,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  cardVisaoDisciplinaNovo: {
+    width: "31.2%",
+    minHeight: 150,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 12,
+    justifyContent: "space-between",
+    elevation: 1,
+  },
+  siglaVisaoDisciplinaNovo: {
+    fontSize: 15,
+    fontWeight: "bold",
+  },
+  mediaVisaoDisciplinaNovo: {
+    marginTop: 8,
+    fontSize: 30,
+    fontWeight: "bold",
+  },
+  statusVisaoDisciplinaNovo: {
+    marginTop: 5,
+    fontSize: 11,
+    fontWeight: "bold",
+  },
+  divisorCardVisaoDisciplinaNovo: {
+    height: 1,
+    backgroundColor: "rgba(100, 116, 139, 0.18)",
+    marginVertical: 8,
+  },
+  notaTrimestreVisaoDisciplinaNovo: {
+    fontSize: 9,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  caixaDicaVisaoNotasNovo: {
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: "#eff6ff",
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+  caixaDicaVisaoNotasTextoNovo: {
+    fontSize: 12,
+    color: "#1d4ed8",
+    lineHeight: 18,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+
 
 });
