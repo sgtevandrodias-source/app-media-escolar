@@ -1793,7 +1793,7 @@ export default function HomeScreen() {
       type: "blob",
       compression: "DEFLATE",
       compressionOptions: { level: 9 },
-      mimeType: "application/octet-stream",
+      mimeType: "application/zip",
     });
 
     const nomeArquivo = gerarNomeArquivoBackup();
@@ -1817,8 +1817,11 @@ export default function HomeScreen() {
         share?: (dados?: ShareData) => Promise<void>;
       };
 
-      const arquivoCompartilhamento = new File([blob], nomeArquivo, {
-        type: "application/octet-stream",
+      // Para compartilhar no Android, usamos a extensão .zip e o MIME padrão.
+      // O conteúdo continua sendo o backup protegido do Média CMB.
+      const nomeCompartilhamento = nomeArquivo.replace(/\.mediacmb$/i, ".zip");
+      const arquivoCompartilhamento = new File([blob], nomeCompartilhamento, {
+        type: "application/zip",
       });
 
       if (typeof navegador.share === "function") {
@@ -1970,7 +1973,7 @@ export default function HomeScreen() {
       const input = document.createElement("input");
       input.type = "file";
       input.accept =
-        ".mediacmb,.json,application/json,application/octet-stream,application/zip";
+        ".mediacmb,.zip,.json,application/json,application/octet-stream,application/zip";
 
       input.onchange = async () => {
         const arquivo = input.files?.[0];
@@ -1994,7 +1997,7 @@ export default function HomeScreen() {
 
           let textoBackup = "";
 
-          if (pareceZip || arquivo.name.toLowerCase().endsWith(".mediacmb")) {
+          if (pareceZip) {
             const pacote = await JSZip.loadAsync(await arquivo.arrayBuffer());
             const arquivoInterno = pacote.file("backup.json");
 
@@ -2021,11 +2024,18 @@ export default function HomeScreen() {
           await restaurarDadosBackup(dados);
         } catch (erro) {
           console.log("Erro ao importar backup:", erro);
-          setMensagem(
-            erro instanceof Error
-              ? erro.message
-              : "Não foi possível importar este arquivo de backup.",
-          );
+          const mensagemErro =
+            erro instanceof Error ? erro.message : String(erro ?? "");
+
+          if (mensagemErro.includes("central directory")) {
+            setMensagem(
+              "Este arquivo não é um pacote compactado válido. Tente selecionar novamente o backup ou use um backup antigo em JSON.",
+            );
+          } else {
+            setMensagem(
+              mensagemErro || "Não foi possível importar este arquivo de backup.",
+            );
+          }
         }
       };
 
