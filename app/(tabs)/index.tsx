@@ -3803,9 +3803,28 @@ export default function HomeScreen() {
         <View style={styles.gradeVisaoDisciplinasNovo}>
           {resumoDisciplinas.map((item, index) => {
             const disciplinaAtual = filho.disciplinas[index];
+            const notasDoTrimestre =
+              disciplinaAtual.trimestres[trimestreSelecionado];
             const notaTrimestre = calcularNotaConsiderada(
               disciplinaAtual,
-              disciplinaAtual.trimestres[trimestreSelecionado],
+              notasDoTrimestre,
+            );
+            const classificacaoTrimestre = obterClassificacao(notaTrimestre);
+
+            // O GIP não entra neste alerta porque é uma pontuação adicional,
+            // normalmente inferior a 1 ponto. O aviso considera as avaliações
+            // efetivamente lançadas: AP.1, AP.2, AE e AR.
+            const notasLancadasParaAlerta = [
+              notasDoTrimestre.ap1,
+              notasDoTrimestre.ap2,
+              ...(disciplinaAtual.usaAE ? [notasDoTrimestre.ae] : []),
+              notasDoTrimestre.ar,
+            ]
+              .map((valor) => textoParaNumero(valor))
+              .filter((valor): valor is number => valor !== null);
+
+            const possuiNotaAbaixoDeSeis = notasLancadasParaAlerta.some(
+              (valor) => valor < 6,
             );
 
             return (
@@ -3815,8 +3834,8 @@ export default function HomeScreen() {
                   styles.cardVisaoDisciplinaNovo,
                   {
                     width: larguraCardVisaoNotas,
-                    backgroundColor: item.classificacao.corFundo,
-                    borderColor: item.classificacao.corBorda,
+                    backgroundColor: classificacaoTrimestre.corFundo,
+                    borderColor: classificacaoTrimestre.corBorda,
                   },
                 ]}
                 onPress={() => {
@@ -3827,7 +3846,7 @@ export default function HomeScreen() {
                 <Text
                   style={[
                     styles.siglaVisaoDisciplinaNovo,
-                    { color: item.classificacao.corTexto },
+                    { color: classificacaoTrimestre.corTexto },
                   ]}
                 >
                   {item.sigla}
@@ -3835,20 +3854,29 @@ export default function HomeScreen() {
                 <Text
                   style={[
                     styles.mediaVisaoDisciplinaNovo,
-                    { color: item.classificacao.corTexto },
+                    { color: classificacaoTrimestre.corTexto },
                   ]}
                 >
-                  {mostrarNota(item.media)}
+                  {mostrarNota(notaTrimestre)}
                 </Text>
                 <Text
                   style={[
                     styles.statusVisaoDisciplinaNovo,
-                    { color: item.classificacao.corTexto },
+                    { color: classificacaoTrimestre.corTexto },
                   ]}
                   numberOfLines={1}
                 >
-                  {item.classificacao.titulo}
+                  {classificacaoTrimestre.titulo}
                 </Text>
+
+                {possuiNotaAbaixoDeSeis ? (
+                  <View style={styles.alertaNotaBaixaVisaoNovo}>
+                    <Text style={styles.alertaNotaBaixaTextoVisaoNovo}>
+                      ⚠ Nota abaixo de 6
+                    </Text>
+                  </View>
+                ) : null}
+
                 <View style={styles.divisorCardVisaoDisciplinaNovo} />
                 <Text style={styles.notaTrimestreVisaoDisciplinaNovo}>
                   {tituloTrimestre(trimestreSelecionado)}: {mostrarNota(notaTrimestre)}
@@ -8488,6 +8516,21 @@ const styles = StyleSheet.create({
   statusVisaoDisciplinaNovo: {
     marginTop: 5,
     fontSize: 11,
+    fontWeight: "bold",
+  },
+  alertaNotaBaixaVisaoNovo: {
+    marginTop: 6,
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    backgroundColor: "#fff1f2",
+    borderWidth: 1,
+    borderColor: "#fecdd3",
+  },
+  alertaNotaBaixaTextoVisaoNovo: {
+    fontSize: 8,
+    color: "#be123c",
     fontWeight: "bold",
   },
   divisorCardVisaoDisciplinaNovo: {
