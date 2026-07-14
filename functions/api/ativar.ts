@@ -1,6 +1,8 @@
 ﻿type Env = {
-  DB: D1Database;
+  DB: any;
 };
+
+const CHAVE_PUBLICA_ILIMITADA = "MEDIA-CMB-LIVRE";
 
 function respostaJson(dados: unknown, status = 200) {
   return new Response(JSON.stringify(dados), {
@@ -46,8 +48,19 @@ export const onRequestPost = async (context: {
           ok: false,
           mensagem: "Informe a chave e o identificador do dispositivo.",
         },
-        400
+        400,
       );
+    }
+
+    // Chave pública: libera qualquer quantidade de dispositivos e não grava
+    // device_1/device_2 no banco.
+    if (chave === CHAVE_PUBLICA_ILIMITADA) {
+      return respostaJson({
+        ok: true,
+        mensagem: "Acesso público liberado neste dispositivo.",
+        chave: CHAVE_PUBLICA_ILIMITADA,
+        ilimitada: true,
+      });
     }
 
     if (!env.DB) {
@@ -56,24 +69,26 @@ export const onRequestPost = async (context: {
           ok: false,
           mensagem: "Banco de licenças não configurado.",
         },
-        500
+        500,
       );
     }
 
-    const licenca = await env.DB
-      .prepare(
-        "SELECT id, chave, status, device_1, device_2, ativada_1_em, ativada_2_em FROM licencas WHERE chave = ?"
-      )
-      .bind(chave)
-      .first<{
-        id: number;
-        chave: string;
-        status: string;
-        device_1: string | null;
-        device_2: string | null;
-        ativada_1_em: string | null;
-        ativada_2_em: string | null;
-      }>();
+ type LicencaBanco = {
+  id: number;
+  chave: string;
+  status: string;
+  device_1: string | null;
+  device_2: string | null;
+  ativada_1_em: string | null;
+  ativada_2_em: string | null;
+};
+
+const licenca = (await env.DB
+  .prepare(
+    "SELECT id, chave, status, device_1, device_2, ativada_1_em, ativada_2_em FROM licencas WHERE chave = ?",
+  )
+  .bind(chave)
+  .first()) as LicencaBanco | null;
 
     if (!licenca) {
       return respostaJson(
@@ -81,7 +96,7 @@ export const onRequestPost = async (context: {
           ok: false,
           mensagem: "Chave não encontrada.",
         },
-        404
+        404,
       );
     }
 
@@ -91,7 +106,7 @@ export const onRequestPost = async (context: {
           ok: false,
           mensagem: "Esta chave está bloqueada ou inativa.",
         },
-        403
+        403,
       );
     }
 
@@ -108,7 +123,7 @@ export const onRequestPost = async (context: {
     if (!licenca.device_1) {
       await env.DB
         .prepare(
-          "UPDATE licencas SET device_1 = ?, ativada_1_em = ? WHERE chave = ?"
+          "UPDATE licencas SET device_1 = ?, ativada_1_em = ? WHERE chave = ?",
         )
         .bind(deviceId, agora, chave)
         .run();
@@ -123,7 +138,7 @@ export const onRequestPost = async (context: {
     if (!licenca.device_2) {
       await env.DB
         .prepare(
-          "UPDATE licencas SET device_2 = ?, ativada_2_em = ? WHERE chave = ?"
+          "UPDATE licencas SET device_2 = ?, ativada_2_em = ? WHERE chave = ?",
         )
         .bind(deviceId, agora, chave)
         .run();
@@ -140,7 +155,7 @@ export const onRequestPost = async (context: {
         ok: false,
         mensagem: "Esta chave já foi ativada em 2 dispositivos.",
       },
-      403
+      403,
     );
   } catch (erro) {
     return respostaJson(
@@ -149,7 +164,7 @@ export const onRequestPost = async (context: {
         mensagem: "Erro interno ao validar a licença.",
         detalhe: erro instanceof Error ? erro.message : String(erro),
       },
-      500
+      500,
     );
   }
 };

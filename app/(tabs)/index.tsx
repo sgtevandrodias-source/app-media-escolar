@@ -1,9 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
+import JSZip from "jszip";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Image,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -92,12 +94,13 @@ type BackupMediaCMB = {
 const CHAVE_STORAGE = "media-escolar-dados";
 const CHAVE_DEVICE_ID = "media-cmb-device-id";
 const CHAVE_LICENCA_LOCAL = "media-cmb-licenca-local";
+const CHAVE_LICENCA_PUBLICA = "MEDIA-CMB-LIVRE";
 const API_BASE_URL = (
   process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://mediacmb.pages.dev"
 ).replace(/\/+$/, "");
 const API_ATIVAR_LICENCA = `${API_BASE_URL}/api/ativar`;
 const TEMPO_LIMITE_API_MS = 15000;
-const VERSAO_BACKUP_ATUAL = 1;
+const VERSAO_BACKUP_ATUAL = 2;
 const TAMANHO_MAXIMO_BACKUP_BYTES = 10 * 1024 * 1024;
 const TAMANHO_MAXIMO_FOTO_BYTES = 350 * 1024;
 
@@ -934,14 +937,6 @@ export default function HomeScreen() {
   const [chaveAtivacao, setChaveAtivacao] = useState("");
   const [mensagemLicenca, setMensagemLicenca] = useState("");
   const [validandoLicenca, setValidandoLicenca] = useState(false);
-  const [mostrarCompraPix, setMostrarCompraPix] = useState(false);
-  const [nomeComprador, setNomeComprador] = useState("");
-  const [emailComprador, setEmailComprador] = useState("");
-  const [whatsappComprador, setWhatsappComprador] = useState("");
-  const [statusCompraPix, setStatusCompraPix] = useState<
-    "inicio" | "preparando" | "aguardando" | "confirmado"
-  >("inicio");
-  const [pixCopiaCola, setPixCopiaCola] = useState("");
   const { width: larguraTela } = useWindowDimensions();
   const larguraConteudo = Math.min(Math.max(larguraTela - 40, 280), 720);
   const larguraSlideAluno = Math.min(Math.max(larguraTela - 40, 280), 520);
@@ -968,19 +963,29 @@ export default function HomeScreen() {
 
         setDeviceId(idDispositivo);
 
-        const licencaSalva = await AsyncStorage.getItem(CHAVE_LICENCA_LOCAL);
+        const agora = new Date().toISOString();
+        const licencaPublica: LicencaLocal = {
+          ativa: true,
+          chave: CHAVE_LICENCA_PUBLICA,
+          deviceId: idDispositivo,
+          ativadaEm: agora,
+          ultimaValidacaoEm: agora,
+        };
 
-        if (licencaSalva) {
-          const dadosLicenca = JSON.parse(licencaSalva) as LicencaLocal;
+        await AsyncStorage.setItem(
+          CHAVE_LICENCA_LOCAL,
+          JSON.stringify(licencaPublica),
+        );
 
-          if (dadosLicenca?.ativa && dadosLicenca?.deviceId === idDispositivo) {
-            setLicencaAtiva(true);
-            setDadosLicencaLocal(dadosLicenca);
-            setChaveAtivacao(dadosLicenca.chave ?? "");
-          }
-        }
+        setDadosLicencaLocal(licencaPublica);
+        setChaveAtivacao(CHAVE_LICENCA_PUBLICA);
+        setLicencaAtiva(true);
       } catch (erro) {
-        console.log("Erro ao carregar licença:", erro);
+        console.log("Erro ao liberar acesso público:", erro);
+
+        // O app continua liberado mesmo se o armazenamento local falhar.
+        setChaveAtivacao(CHAVE_LICENCA_PUBLICA);
+        setLicencaAtiva(true);
       } finally {
         setLicencaCarregada(true);
       }
@@ -1756,7 +1761,7 @@ export default function HomeScreen() {
     setPesquisaAluno("");
     setMensagem(`${aluno.nome} foi excluído com segurança.`);
   }
-  function criarArquivoBackup() {
+  async function criarArquivoBackup() {
     const backup: BackupMediaCMB = {
       app: "MEDIA_CMB",
       versaoBackup: VERSAO_BACKUP_ATUAL,
@@ -1764,13 +1769,35 @@ export default function HomeScreen() {
       filhos,
     };
 
-    const conteudo = JSON.stringify(backup, null, 2);
-    const nomeArquivo = gerarNomeArquivoBackup();
-    const blob = new Blob([conteudo], {
-      type: "application/vnd.media-cmb.backup+json",
+    const conteudo = JSON.stringify(backup);
+
+    if (estimarTamanhoTextoBytes(conteudo) > TAMANHO_MAXIMO_BACKUP_BYTES) {
+      throw new Error(
+        "O backup ficou grande demais. Remova fotos muito pesadas e tente novamente.",
+      );
+    }
+
+    const pacote = new JSZip();
+    pacote.file("backup.json", conteudo);
+    pacote.file(
+      "LEIA-ME.txt",
+      [
+        "Backup do aplicativo Média CMB.",
+        "",
+        "Não altere os arquivos internos deste pacote.",
+        "Para restaurar os dados, abra o Média CMB e use o botão Importar backup.",
+      ].join("\n"),
+    );
+
+    const blob = await pacote.generateAsync({
+      type: "blob",
+      compression: "DEFLATE",
+      compressionOptions: { level: 9 },
+      mimeType: "application/octet-stream",
     });
 
-    return { backup, conteudo, nomeArquivo, blob };
+    const nomeArquivo = gerarNomeArquivoBackup();
+    return { backup, nomeArquivo, blob };
   }
 
   async function compartilharBackup() {
@@ -1784,94 +1811,53 @@ export default function HomeScreen() {
     setMensagem("Preparando o backup para compartilhar...");
 
     try {
-      const { conteudo, nomeArquivo } = criarArquivoBackup();
+      const { nomeArquivo, blob } = await criarArquivoBackup();
       const navegador = navigator as Navigator & {
         canShare?: (dados?: ShareData) => boolean;
         share?: (dados?: ShareData) => Promise<void>;
       };
 
-      if (typeof navegador.share !== "function") {
-        const desejaSalvar = window.confirm(
-          "Este navegador não oferece compartilhamento direto de arquivos. Deseja salvar o backup no aparelho para enviá-lo manualmente?",
-        );
+      const arquivoCompartilhamento = new File([blob], nomeArquivo, {
+        type: "application/octet-stream",
+      });
 
-        if (desejaSalvar) {
-          salvarBackupNoAparelho();
-        } else {
-          setMensagem("Compartilhamento cancelado. Nenhum arquivo foi salvo.");
-        }
-        return;
-      }
-
-      // Extensão e MIME comuns aumentam a compatibilidade com WhatsApp,
-      // Gmail, Drive e outros destinos do menu nativo do celular.
-      const nomeCompartilhamento = nomeArquivo.replace(/\.mediacmb$/i, ".json");
-      const arquivoCompartilhamento = new File(
-        [conteudo],
-        nomeCompartilhamento,
-        { type: "application/json" },
-      );
-
-      // Alguns navegadores rejeitam a combinação de texto + arquivo, embora
-      // aceitem o mesmo arquivo sozinho. Tentamos primeiro a forma mais ampla.
-      const tentativas: ShareData[] = [
-        {
-          title: "Backup do Média CMB",
-          files: [arquivoCompartilhamento],
-        },
-        {
-          files: [arquivoCompartilhamento],
-        },
-      ];
-
-      let ultimoErro: any = null;
-
-      for (const dados of tentativas) {
+      if (typeof navegador.share === "function") {
         try {
-          // canShare é apenas uma indicação. Mesmo quando retorna falso em certos
-          // navegadores, a chamada share pode funcionar, por isso não bloqueamos.
-          await navegador.share(dados);
+          await navegador.share({
+            title: "Backup do Média CMB",
+            files: [arquivoCompartilhamento],
+          });
           setMensagem("Backup compartilhado com sucesso.");
           return;
-        } catch (erroTentativa: any) {
-          if (erroTentativa?.name === "AbortError") {
+        } catch (erroCompartilhamento: any) {
+          if (erroCompartilhamento?.name === "AbortError") {
             setMensagem("Compartilhamento cancelado.");
             return;
           }
-          ultimoErro = erroTentativa;
+          console.log("Compartilhamento direto indisponível:", erroCompartilhamento);
         }
       }
 
-      console.log("Erro ao compartilhar backup:", ultimoErro);
       const desejaSalvar = window.confirm(
-        "Não foi possível abrir o menu de compartilhamento neste navegador. Deseja salvar o backup no aparelho para enviá-lo manualmente?",
+        "Este navegador não conseguiu abrir o menu de compartilhamento. Deseja salvar o backup protegido no aparelho para enviá-lo manualmente?",
       );
 
       if (desejaSalvar) {
-        salvarBackupNoAparelho();
-      } else {
-        setMensagem("Compartilhamento cancelado. Nenhum arquivo foi salvo.");
-      }
-    } catch (erro: any) {
-      if (erro?.name === "AbortError") {
-        setMensagem("Compartilhamento cancelado.");
-        return;
-      }
-
-      console.log("Erro ao preparar compartilhamento do backup:", erro);
-      const desejaSalvar = window.confirm(
-        "Não foi possível preparar o compartilhamento. Deseja salvar o backup no aparelho?",
-      );
-
-      if (desejaSalvar) {
-        salvarBackupNoAparelho();
+        await salvarBackupNoAparelho();
       } else {
         setMensagem("Operação cancelada. Nenhum arquivo foi salvo.");
       }
+    } catch (erro) {
+      console.log("Erro ao preparar compartilhamento do backup:", erro);
+      setMensagem(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível preparar o backup agora.",
+      );
     }
   }
 
-  function salvarBackupNoAparelho() {
+  async function salvarBackupNoAparelho() {
     try {
       if (Platform.OS !== "web" || typeof document === "undefined") {
         setMensagem(
@@ -1880,7 +1866,8 @@ export default function HomeScreen() {
         return;
       }
 
-      const { nomeArquivo, blob } = criarArquivoBackup();
+      setMensagem("Preparando backup protegido...");
+      const { nomeArquivo, blob } = await criarArquivoBackup();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -1890,12 +1877,85 @@ export default function HomeScreen() {
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 30000);
       setMensagem(
-        "Backup salvo. Não é necessário abrir o arquivo; use Importar backup para restaurá-lo.",
+        "Backup protegido salvo. Para restaurá-lo, use o botão Importar backup dentro do Média CMB.",
       );
     } catch (erro) {
       console.log("Erro ao salvar backup:", erro);
-      setMensagem("Não foi possível salvar o backup agora.");
+      setMensagem(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível salvar o backup agora.",
+      );
     }
+  }
+
+  async function restaurarDadosBackup(dados: any) {
+    if (dados?.app !== "MEDIA_CMB" || !Array.isArray(dados?.filhos)) {
+      throw new Error("Arquivo de backup inválido para o Média CMB.");
+    }
+
+    const versaoBackup = Number(dados?.versaoBackup ?? 1);
+
+    if (!Number.isInteger(versaoBackup) || versaoBackup < 1) {
+      throw new Error("A versão deste backup é inválida.");
+    }
+
+    if (versaoBackup > VERSAO_BACKUP_ATUAL) {
+      throw new Error(
+        "Este backup foi criado por uma versão mais nova do Média CMB. Atualize o app antes de importar.",
+      );
+    }
+
+    const anosEncontrados = Array.from(
+      new Set(
+        dados.filhos.flatMap((item: any) =>
+          Object.keys(item?.anosLetivos ?? {}),
+        ),
+      ),
+    ).sort();
+    const possuiFotos = dados.filhos.some(
+      (item: any) => String(item?.fotoUri ?? "").trim() !== "",
+    );
+    const dataBackup = formatarDataHora(dados?.exportadoEm);
+    const resumoBackup = [
+      `Data do backup: ${dataBackup}`,
+      `Alunos: ${dados.filhos.length}`,
+      `Anos letivos: ${anosEncontrados.length ? anosEncontrados.join(", ") : "não informado"}`,
+      `Fotos incluídas: ${possuiFotos ? "Sim" : "Não"}`,
+      "",
+      "Os dados atuais deste aparelho serão substituídos.",
+      "Deseja restaurar este backup?",
+    ].join("\n");
+
+    const confirmar =
+      typeof window !== "undefined"
+        ? window.confirm(`Backup encontrado\n\n${resumoBackup}`)
+        : true;
+
+    if (!confirmar) {
+      setMensagem("Importação cancelada.");
+      return;
+    }
+
+    const filhosNormalizados = dados.filhos.map(
+      (item: any, index: number) => normalizarFilho(item, index),
+    );
+
+    if (!filhosNormalizados.length) {
+      throw new Error("O backup não possui alunos válidos.");
+    }
+
+    await salvarFilhosNoDispositivo(filhosNormalizados);
+    setFilhos(filhosNormalizados);
+    setFilhoSelecionado(0);
+    setAnoLetivoSelecionado(
+      filhosNormalizados[0].anoLetivoAtivo ?? ANO_LETIVO_PADRAO,
+    );
+    setDisciplinaSelecionada(0);
+    setTrimestreSelecionado("t1");
+    setAbaAtiva("inicio");
+    setModoFormulario(null);
+    setMensagem("Backup importado com sucesso neste dispositivo.");
   }
 
   function importarBackup() {
@@ -1909,14 +1969,12 @@ export default function HomeScreen() {
 
       const input = document.createElement("input");
       input.type = "file";
-      input.accept = ".mediacmb,.json,application/json,application/vnd.media-cmb.backup+json";
+      input.accept =
+        ".mediacmb,.json,application/json,application/octet-stream,application/zip";
 
-      input.onchange = () => {
+      input.onchange = async () => {
         const arquivo = input.files?.[0];
-
-        if (!arquivo) {
-          return;
-        }
+        if (!arquivo) return;
 
         if (arquivo.size > TAMANHO_MAXIMO_BACKUP_BYTES) {
           setMensagem(
@@ -1925,96 +1983,50 @@ export default function HomeScreen() {
           return;
         }
 
-        const leitor = new FileReader();
+        setMensagem("Lendo e verificando o backup...");
 
-        leitor.onload = async () => {
-          try {
-            const texto = String(leitor.result ?? "");
+        try {
+          const bytesIniciais = new Uint8Array(
+            await arquivo.slice(0, 4).arrayBuffer(),
+          );
+          const pareceZip =
+            bytesIniciais[0] === 0x50 && bytesIniciais[1] === 0x4b;
 
-            if (estimarTamanhoTextoBytes(texto) > TAMANHO_MAXIMO_BACKUP_BYTES) {
-              setMensagem("O arquivo de backup excede o limite permitido.");
-              return;
-            }
+          let textoBackup = "";
 
-            const dados = JSON.parse(texto);
+          if (pareceZip || arquivo.name.toLowerCase().endsWith(".mediacmb")) {
+            const pacote = await JSZip.loadAsync(await arquivo.arrayBuffer());
+            const arquivoInterno = pacote.file("backup.json");
 
-            if (dados?.app !== "MEDIA_CMB" || !Array.isArray(dados?.filhos)) {
-              setMensagem("Arquivo de backup inválido para o Média CMB.");
-              return;
-            }
-
-            const versaoBackup = Number(dados?.versaoBackup ?? 1);
-
-            if (!Number.isInteger(versaoBackup) || versaoBackup < 1) {
-              setMensagem("A versão deste backup é inválida.");
-              return;
-            }
-
-            if (versaoBackup > VERSAO_BACKUP_ATUAL) {
-              setMensagem(
-                "Este backup foi criado por uma versão mais nova do Média CMB. Atualize o app antes de importar.",
+            if (!arquivoInterno) {
+              throw new Error(
+                "Este arquivo não contém um backup válido do Média CMB.",
               );
-              return;
             }
 
-            const anosEncontrados = Array.from(
-              new Set(
-                dados.filhos.flatMap((item: any) =>
-                  Object.keys(item?.anosLetivos ?? {}),
-                ),
-              ),
-            ).sort();
-            const possuiFotos = dados.filhos.some(
-              (item: any) => String(item?.fotoUri ?? "").trim() !== "",
-            );
-            const dataBackup = formatarDataHora(dados?.exportadoEm);
-            const resumoBackup = [
-              `Data do backup: ${dataBackup}`,
-              `Alunos: ${dados.filhos.length}`,
-              `Anos letivos: ${anosEncontrados.length ? anosEncontrados.join(", ") : "não informado"}`,
-              `Fotos incluídas: ${possuiFotos ? "Sim" : "Não"}`,
-              "",
-              "Os dados atuais deste aparelho serão substituídos.",
-              "Deseja restaurar este backup?",
-            ].join("\n");
-
-            const confirmar =
-              typeof window !== "undefined"
-                ? window.confirm(`Backup encontrado\n\n${resumoBackup}`)
-                : true;
-
-            if (!confirmar) {
-              setMensagem("Importação cancelada.");
-              return;
-            }
-
-            const filhosNormalizados = dados.filhos.map(
-              (item: any, index: number) => normalizarFilho(item, index),
-            );
-
-            if (!filhosNormalizados.length) {
-              setMensagem("O backup não possui alunos válidos.");
-              return;
-            }
-
-            await salvarFilhosNoDispositivo(filhosNormalizados);
-            setFilhos(filhosNormalizados);
-            setFilhoSelecionado(0);
-            setAnoLetivoSelecionado(
-              filhosNormalizados[0].anoLetivoAtivo ?? ANO_LETIVO_PADRAO,
-            );
-            setDisciplinaSelecionada(0);
-            setTrimestreSelecionado("t1");
-            setAbaAtiva("inicio");
-            setModoFormulario(null);
-            setMensagem("Backup importado com sucesso neste dispositivo.");
-          } catch (erro) {
-            console.log("Erro ao importar backup:", erro);
-            setMensagem("Não foi possível importar este arquivo de backup.");
+            textoBackup = await arquivoInterno.async("string");
+          } else {
+            // Compatibilidade com os backups antigos em JSON puro.
+            textoBackup = await arquivo.text();
           }
-        };
 
-        leitor.readAsText(arquivo);
+          if (
+            estimarTamanhoTextoBytes(textoBackup) >
+            TAMANHO_MAXIMO_BACKUP_BYTES
+          ) {
+            throw new Error("O conteúdo do backup excede o limite permitido.");
+          }
+
+          const dados = JSON.parse(textoBackup);
+          await restaurarDadosBackup(dados);
+        } catch (erro) {
+          console.log("Erro ao importar backup:", erro);
+          setMensagem(
+            erro instanceof Error
+              ? erro.message
+              : "Não foi possível importar este arquivo de backup.",
+          );
+        }
       };
 
       input.click();
@@ -2023,6 +2035,7 @@ export default function HomeScreen() {
       setMensagem("Não foi possível abrir o seletor de arquivo.");
     }
   }
+
   async function ativarLicenca() {
     const chave = normalizarChave(chaveAtivacao);
 
@@ -2124,25 +2137,31 @@ export default function HomeScreen() {
     }
   }
 
-  function prepararCompraPix() {
-    const nome = nomeComprador.trim();
-    const email = emailComprador.trim();
+  async function solicitarAcesso() {
+    const destinatario = "edsideasfactory@gmail.com";
+    const assunto = "Solicitação de acesso — Média CMB";
+    const corpo = [
+      "Olá! Gostaria de solicitar uma chave de acesso ao app Média CMB.",
+      "",
+      `ID do dispositivo: ${deviceId || "não identificado"}`,
+      "",
+      "Nome:",
+      "Colégio:",
+      "",
+      "Obrigado!",
+    ].join("\n");
 
-    if (!nome) {
-      setMensagemLicenca("Informe o nome do comprador.");
-      return;
+    const url = `mailto:${destinatario}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
+
+    try {
+      await Linking.openURL(url);
+    } catch (erro) {
+      console.log("Erro ao abrir aplicativo de e-mail:", erro);
+      Alert.alert(
+        "Não foi possível abrir o e-mail",
+        `Envie sua solicitação diretamente para ${destinatario}.`,
+      );
     }
-
-    if (!email || !email.includes("@")) {
-      setMensagemLicenca("Informe um e-mail válido para receber a chave.");
-      return;
-    }
-
-    setStatusCompraPix("aguardando");
-    setPixCopiaCola("PIX-AINDA-NAO-CONFIGURADO-MERCADO-PAGO");
-    setMensagemLicenca(
-      "Área de compra preparada. Na próxima etapa, este botão vai gerar um Pix real pelo Mercado Pago.",
-    );
   }
 
   function renderTelaLicenca() {
@@ -2208,105 +2227,20 @@ export default function HomeScreen() {
             <Text style={styles.cardTituloLicenca}>Ainda não tem chave?</Text>
 
             <Text style={styles.infoLicenca}>
-              Em breve você poderá comprar a licença por Pix. Após a confirmação
-              do pagamento, a chave será liberada automaticamente no app e
-              enviada por e-mail.
+              O acesso ao Média CMB é gratuito. Solicite sua chave por e-mail e,
+              depois de recebê-la, digite-a no campo acima para ativar o app.
             </Text>
 
-            {!mostrarCompraPix ? (
-              <Pressable
-                style={styles.botaoComprarPix}
-                onPress={() => {
-                  setMostrarCompraPix(true);
-                  setMensagemLicenca("");
-                }}
-              >
-                <Text style={styles.botaoComprarPixTexto}>
-                  Comprar licença por Pix
-                </Text>
-              </Pressable>
-            ) : (
-              <View style={styles.formCompraPix}>
-                <Text style={styles.labelLicenca}>Nome do comprador</Text>
-                <TextInput
-                  style={styles.inputLicenca}
-                  value={nomeComprador}
-                  onChangeText={setNomeComprador}
-                  placeholder="Ex.: Evandro Dias"
-                  placeholderTextColor="#94a3b8"
-                />
+            <Pressable
+              style={styles.botaoComprarPix}
+              onPress={solicitarAcesso}
+            >
+              <Text style={styles.botaoComprarPixTexto}>Solicitar acesso</Text>
+            </Pressable>
 
-                <Text style={styles.labelLicenca}>
-                  E-mail para receber a chave
-                </Text>
-                <TextInput
-                  style={styles.inputLicenca}
-                  value={emailComprador}
-                  onChangeText={setEmailComprador}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="email-address"
-                  placeholder="Ex.: email@exemplo.com"
-                  placeholderTextColor="#94a3b8"
-                />
-
-                <Text style={styles.labelLicenca}>WhatsApp opcional</Text>
-                <TextInput
-                  style={styles.inputLicenca}
-                  value={whatsappComprador}
-                  onChangeText={setWhatsappComprador}
-                  keyboardType="phone-pad"
-                  placeholder="Ex.: (61) 99999-9999"
-                  placeholderTextColor="#94a3b8"
-                />
-
-                <Pressable
-                  style={styles.botaoGerarPix}
-                  onPress={prepararCompraPix}
-                >
-                  <Text style={styles.botaoGerarPixTexto}>
-                    Gerar Pix de R$ 14,99
-                  </Text>
-                </Pressable>
-
-                {statusCompraPix === "aguardando" ? (
-                  <View style={styles.caixaPixPreparado}>
-                    <Text style={styles.pixTitulo}>
-                      Pix preparado para integração
-                    </Text>
-
-                    <Text style={styles.infoLicenca}>
-                      Quando conectarmos o Mercado Pago, aqui aparecerão o QR
-                      Code Pix e o código Pix copia e cola.
-                    </Text>
-
-                    <Text style={styles.labelLicenca}>Pix copia e cola</Text>
-
-                    <View style={styles.caixaCodigoPix}>
-                      <Text style={styles.codigoPixTexto}>{pixCopiaCola}</Text>
-                    </View>
-
-                    <Text style={styles.avisoPix}>
-                      Esta tela ainda não realiza cobrança real.
-                    </Text>
-                  </View>
-                ) : null}
-
-                <Pressable
-                  style={styles.botaoVoltarChave}
-                  onPress={() => {
-                    setMostrarCompraPix(false);
-                    setStatusCompraPix("inicio");
-                    setPixCopiaCola("");
-                    setMensagemLicenca("");
-                  }}
-                >
-                  <Text style={styles.botaoVoltarChaveTexto}>
-                    Já tenho uma chave
-                  </Text>
-                </Pressable>
-              </View>
-            )}
+            <Text style={styles.rodapeSub}>
+              A solicitação será enviada para edsideasfactory@gmail.com
+            </Text>
           </View>
 
           <View style={styles.caixaDeviceNovo}>
@@ -4721,19 +4655,20 @@ export default function HomeScreen() {
           </Text>
         </View>
         <View style={styles.cardPerfilInfoNovo}>
-          <Text style={styles.labelHeroNovo}>Licença</Text>
+          <Text style={styles.labelHeroNovo}>Acesso</Text>
           <Text style={styles.tituloPerfilInfoNovo}>
-            App ativado neste dispositivo
+            Acesso livre ao Média CMB
           </Text>
 
           <Text style={styles.infoPerfilInfoNovo}>
-            A licença do Média CMB fica vinculada ao aparelho usado na ativação.
-            Cada chave pode ser usada em até 2 dispositivos autorizados.
+            O app está liberado gratuitamente e pode ser utilizado em um número
+            ilimitado de dispositivos. A estrutura de licença permanece ativa
+            para futuras configurações do projeto.
           </Text>
 
           <View style={styles.caixaStatusLicencaPerfilNovo}>
             <Text style={styles.statusLicencaPerfilTextoNovo}>
-              Licença ativa
+              Acesso público ativo
             </Text>
           </View>
 
@@ -5154,10 +5089,6 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
     );
-  }
-
-  if (!licencaAtiva) {
-    return renderTelaLicenca();
   }
 
   return (
